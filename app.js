@@ -67,12 +67,15 @@
   }
   let dailyLimit = loadDailyLimit();
   let currentScope = 'week';
+  let currentPage = 'home';
   let editingId = null;
   let currentWeekChart = null;
   let previousWeekChart = null;
   let categoryChart = null;
   let subcategoryChart = null;
   let subscriptionsChart = null;
+  let budgetGaugeChart = null;
+  let ringCharts = {};
 
   // ---------- elements ----------
   const form = document.getElementById('expenseForm');
@@ -85,22 +88,17 @@
   const submitBtn = document.getElementById('submitBtn');
   const cancelEditBtn = document.getElementById('cancelEditBtn');
   const entriesList = document.getElementById('entriesList');
-  const entriesTitle = document.getElementById('entriesTitle');
   const scopeAvgEl = document.getElementById('scopeAvg');
   const scopeAvgLabel = document.getElementById('scopeAvgLabel');
   const scopeTotalEl = document.getElementById('scopeTotal');
   const scopeTotalLabel = document.getElementById('scopeTotalLabel');
   const mainChartTitle = document.getElementById('mainChartTitle');
   const previousWeekCard = document.getElementById('previousWeekCard');
-  const tabWeek = document.getElementById('tabWeek');
-  const tabMonth = document.getElementById('tabMonth');
-  const tabAll = document.getElementById('tabAll');
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
   const dailyLimitDisplay = document.getElementById('dailyLimitDisplay');
   const formCard = document.getElementById('formCard');
-  const quickAddBtn = document.getElementById('quickAddBtn');
   const settingsForm = document.getElementById('settingsForm');
   const dailyLimitInput = document.getElementById('dailyLimitInput');
   const categoryEmptyState = document.getElementById('categoryEmptyState');
@@ -109,6 +107,7 @@
   const subscriptionsStat = document.getElementById('subscriptionsStat');
   const subscriptionsList = document.getElementById('subscriptionsList');
   const themeToggle = document.getElementById('themeToggle');
+  const appNav = document.getElementById('appNav');
 
   // ---------- theme ----------
   const THEME_KEY = 'expenseTrackerTheme';
@@ -249,18 +248,10 @@
       .reduce((sum, e) => sum + e.amount, 0);
   }
 
-  // ---------- rendering: entries ----------
+  // ---------- rendering: entries (always current week) ----------
   function renderEntries() {
     const todayStr = toISODate(new Date());
-    let dateStrs;
-
-    if (currentScope === 'all') {
-      // Only dates that actually have expenses — padding every empty day since
-      // the beginning of time would make the list unusable. Most recent first.
-      dateStrs = Array.from(new Set(expenses.map((e) => e.date))).sort().reverse();
-    } else {
-      dateStrs = scopeDates().map(toISODate);
-    }
+    const dateStrs = weekDates(startOfWeek(new Date())).map(toISODate);
 
     entriesList.innerHTML = dateStrs.map((dateStr) => {
       const d = new Date(`${dateStr}T00:00:00`);
@@ -314,6 +305,132 @@
     scopeAvgEl.textContent = formatEUR(avg);
     scopeTotalEl.textContent = formatEUR(total);
   }
+
+  // ---------- rendering: today's gauge + category rings ----------
+  function renderGauge() {
+    const todayStr = toISODate(new Date());
+    const spentToday = dailyTotal(todayStr);
+    const remaining = Math.max(dailyLimit - spentToday, 0);
+    const over = spentToday > dailyLimit;
+
+    document.getElementById('gaugeSpentToday').textContent = formatEUR(spentToday);
+    document.getElementById('gaugeLeftToday').textContent = over
+      ? `${formatEUR(spentToday - dailyLimit)} over budget`
+      : `of ${formatEUR(dailyLimit)}: ${formatEUR(remaining)} left`;
+
+    const canvas = document.getElementById('budgetGauge');
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, canvas.clientWidth || 260, 0);
+    if (over) {
+      gradient.addColorStop(0, '#e0555f');
+      gradient.addColorStop(1, '#c23f49');
+    } else {
+      gradient.addColorStop(0, '#f2a541');
+      gradient.addColorStop(1, '#8b5cf6');
+    }
+
+    if (budgetGaugeChart) { budgetGaugeChart.destroy(); budgetGaugeChart = null; }
+    budgetGaugeChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: over ? [dailyLimit, 0] : [spentToday, remaining],
+          backgroundColor: [gradient, cssVar('--surface-2')],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '78%',
+        rotation: -225,
+        circumference: 270,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      },
+    });
+  }
+
+  function renderRings() {
+    const todayStr = toISODate(new Date());
+    const todaysExpenses = expenses.filter((e) => e.date === todayStr);
+    const totalToday = todaysExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const container = document.getElementById('categoryRings');
+
+    Object.values(ringCharts).forEach((c) => c && c.destroy());
+    ringCharts = {};
+
+    container.innerHTML = Object.keys(CATEGORIES).map((c) => `
+      <div class="ring-item">
+        <div class="ring-canvas-wrap">
+          <canvas id="ring${c}"></canvas>
+          <span class="ring-value" id="ringValue${c}">€0</span>
+        </div>
+        <span class="ring-label">${CATEGORIES[c].label}</span>
+      </div>
+    `).join('');
+
+    Object.keys(CATEGORIES).forEach((c) => {
+      const amount = todaysExpenses
+        .filter((e) => e.category === c)
+        .reduce((sum, e) => sum + e.amount, 0);
+      document.getElementById(`ringValue${c}`).textContent = formatEUR(amount).replace(/,00\s?€/, '€').replace('€', '');
+      const ctx = document.getElementById(`ring${c}`).getContext('2d');
+      ringCharts[c] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: totalToday > 0 ? [amount, Math.max(totalToday - amount, 0)] : [0, 1],
+            backgroundColor: [CATEGORIES[c].color, cssVar('--surface-2')],
+            borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%',
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        },
+      });
+    });
+  }
+
+  // ---------- exploded-donut leader-line plugin ----------
+  const leaderLinePlugin = {
+    id: 'leaderLines',
+    afterDraw(chart) {
+      const meta = chart.getDatasetMeta(0);
+      if (!meta || !meta.data || !meta.data.length) return;
+      const dataset = chart.data.datasets[0];
+      const total = dataset.data.reduce((a, b) => a + b, 0);
+      if (!total) return;
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = '11px ' + (cssVar('--font-body') || 'sans-serif');
+      meta.data.forEach((arc, i) => {
+        const value = dataset.data[i];
+        if (!value) return;
+        const pct = Math.round((value / total) * 100);
+        const angle = (arc.startAngle + arc.endAngle) / 2;
+        const outerR = arc.outerRadius;
+        const cx = arc.x;
+        const cy = arc.y;
+        const x1 = cx + Math.cos(angle) * (outerR + 3);
+        const y1 = cy + Math.sin(angle) * (outerR + 3);
+        const x2 = cx + Math.cos(angle) * (outerR + 11);
+        const y2 = cy + Math.sin(angle) * (outerR + 11);
+        ctx.strokeStyle = cssVar('--ink-muted') || '#999';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.fillStyle = cssVar('--ink-secondary') || '#666';
+        ctx.textAlign = x2 >= cx ? 'left' : 'right';
+        ctx.fillText(`${chart.data.labels[i]} ${pct}%`, x2 + (x2 >= cx ? 3 : -3), y2 + 3);
+      });
+      ctx.restore();
+    },
+  };
 
   // ---------- rendering: charts ----------
   function buildChartConfig(dates) {
@@ -464,14 +581,16 @@
         datasets: [{
           data: categories.map((c) => totalsByCategory[c]),
           backgroundColor: categories.map((c) => CATEGORIES[c].color),
+          offset: categories.map(() => 10),
           borderWidth: 0,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: 48 },
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -479,6 +598,7 @@
           },
         },
       },
+      plugins: [leaderLinePlugin],
     };
   }
 
@@ -501,14 +621,16 @@
         datasets: [{
           data: keys.map((s) => totals[s]),
           backgroundColor: keys.map((s) => subs[s]),
+          offset: keys.map(() => 10),
           borderWidth: 0,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: 48 },
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -516,6 +638,7 @@
           },
         },
       },
+      plugins: [leaderLinePlugin],
     };
   }
 
@@ -593,14 +716,16 @@
         datasets: [{
           data: [subscriptionTotal, monthlyLoggedTotal],
           backgroundColor: ['#d1495b', '#94a3b8'],
+          offset: [10, 10],
           borderWidth: 0,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: 48 },
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -608,6 +733,7 @@
           },
         },
       },
+      plugins: [leaderLinePlugin],
     });
   }
 
@@ -616,28 +742,49 @@
     renderStats();
     renderCharts();
     renderSubscriptions();
+    renderGauge();
+    renderRings();
   }
 
-  // ---------- tabs ----------
+  // ---------- scope tabs (Week/Month/Total) ----------
   function currentMonthLabel() {
     return new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   }
 
   function setScope(scope) {
     currentScope = scope;
-    [tabWeek, tabMonth, tabAll].forEach((btn) => {
-      const active = btn.id === `tab${scope.charAt(0).toUpperCase()}${scope.slice(1)}`;
+    document.querySelectorAll('.scope-tab').forEach((btn) => {
+      const active = btn.dataset.scope === scope;
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-selected', String(active));
     });
     mainChartTitle.textContent = scope === 'week' ? 'This Week (Mon–Sun)' : scope === 'month' ? currentMonthLabel() : 'All Time';
-    entriesTitle.textContent = scope === 'week' ? "This Week's Entries" : scope === 'month' ? "This Month's Entries" : 'All Entries';
     renderAll();
   }
 
-  tabWeek.addEventListener('click', () => setScope('week'));
-  tabMonth.addEventListener('click', () => setScope('month'));
-  tabAll.addEventListener('click', () => setScope('all'));
+  document.querySelectorAll('.scope-tab').forEach((btn) => {
+    btn.addEventListener('click', () => setScope(btn.dataset.scope));
+  });
+
+  // ---------- page navigation ----------
+  function setPage(page) {
+    currentPage = page;
+    document.querySelectorAll('.page').forEach((section) => {
+      section.classList.toggle('hidden', section.dataset.page !== page);
+    });
+    appNav.querySelectorAll('.app-nav-item').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.page === page);
+    });
+    if (page === 'add') amountInput.focus();
+    // Charts built while their page was display:none get created with a
+    // zero-size canvas and never recover — rebuild once the page is visible.
+    if (page === 'charts') { renderCharts(); renderSubscriptions(); }
+    if (page === 'home') { renderCharts(); renderGauge(); renderRings(); }
+  }
+
+  appNav.querySelectorAll('.app-nav-item').forEach((btn) => {
+    btn.addEventListener('click', () => setPage(btn.dataset.page));
+  });
 
   // ---------- form handling ----------
   function resetForm() {
@@ -662,7 +809,7 @@
     submitBtn.textContent = 'Update Expense';
     cancelEditBtn.classList.remove('hidden');
     formTitle.textContent = 'Edit Expense';
-    formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setPage('add');
   }
 
   function deleteExpense(id) {
@@ -695,13 +842,12 @@
     saveExpenses();
     resetForm();
     renderAll();
+    setPage('home');
   });
 
-  cancelEditBtn.addEventListener('click', resetForm);
-
-  quickAddBtn.addEventListener('click', () => {
-    formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    amountInput.focus();
+  cancelEditBtn.addEventListener('click', () => {
+    resetForm();
+    setPage('home');
   });
 
   entriesList.addEventListener('click', (e) => {
@@ -835,6 +981,7 @@
   function runSync() {
     const s = syncSettings();
     if (!s.gistId || !s.token) { showSyncStatus('Set Gist ID + token first.', true); return; }
+    syncNowBtnTop.classList.add('syncing');
     showSyncStatus('Syncing…', false);
     ghFetch(`https://api.github.com/gists/${s.gistId}/commits?per_page=100`)
       .then((res) => {
@@ -873,7 +1020,8 @@
         };
         next(0);
       })
-      .catch((err) => showSyncStatus(`Sync failed: ${err.message}`, true));
+      .catch((err) => showSyncStatus(`Sync failed: ${err.message}`, true))
+      .finally(() => syncNowBtnTop.classList.remove('syncing'));
   }
 
   function restartSyncTimer() {
@@ -912,5 +1060,6 @@
   dailyLimitDisplay.textContent = formatEUR(dailyLimit);
   dailyLimitInput.value = dailyLimit;
   dateInput.value = toISODate(new Date());
+  setPage('home');
   renderAll();
 })();
