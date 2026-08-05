@@ -316,8 +316,6 @@
 
     document.getElementById('gaugeSpentToday').textContent = formatEUR(spentToday);
     document.getElementById('gaugePct').textContent = `${pct}% of daily budget`;
-    document.getElementById('gaugeStartLabel').textContent = formatEUR(0);
-    document.getElementById('gaugeEndLabel').textContent = formatEUR(dailyLimit);
 
     const canvas = document.getElementById('budgetGauge');
     const ctx = canvas.getContext('2d');
@@ -338,15 +336,15 @@
           data: over ? [dailyLimit, 0] : [spentToday, remaining],
           backgroundColor: [gradient, cssVar('--surface-2')],
           borderWidth: 0,
+          borderRadius: 20,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '78%',
+        cutout: '90%',
         rotation: 270,
         circumference: 180,
-        layout: { padding: { left: 42, right: 42, top: 0, bottom: 0 } },
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
       },
     });
@@ -384,12 +382,13 @@
             data: totalToday > 0 ? [amount, Math.max(totalToday - amount, 0)] : [0, 1],
             backgroundColor: [CATEGORIES[c].color, cssVar('--surface-2')],
             borderWidth: 0,
+            borderRadius: 10,
           }],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          cutout: '72%',
+          cutout: '88%',
           plugins: { legend: { display: false }, tooltip: { enabled: false } },
         },
       });
