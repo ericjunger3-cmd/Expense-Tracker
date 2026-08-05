@@ -277,6 +277,7 @@ button.danger:hover { filter: none; opacity: 0.75; }
 
 /* ---------- gauge ---------- */
 .gauge-wrap { position: relative; width: 100%; height: 180px; margin: 0 auto; max-width: 250px; }
+.gauge-wrap canvas { margin-top: -20px; }
 .gauge-center {
   position: absolute; left: 0; right: 0; bottom: 0; height: 48%;
   display: flex; flex-direction: column;
