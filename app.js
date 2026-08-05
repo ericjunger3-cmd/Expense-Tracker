@@ -494,24 +494,18 @@
   }
 
   // Interpolates between two [r,g,b] colors at fraction t (0-1).
-  function colorAt(start, end, t) {
-    return toHex(start.map((s, j) => s + (end[j] - s) * t));
-  }
-
-  // Evenly-spaced shades between two colors, n of them, for exploded-donut slices.
-  function shadesBetween(start, end, n) {
-    if (n <= 1) return [colorAt(start, end, 0)];
-    return Array.from({ length: n }, (_, i) => colorAt(start, end, i / (n - 1)));
-  }
-
-  function purpleShades(n) {
-    return shadesBetween([139, 92, 246], [196, 181, 253], n); // #8b5cf6 -> #c4b5fd
+  function mixRgb(start, end, t) {
+    return start.map((s, j) => s + (end[j] - s) * t);
   }
 
   // The Home gauge's purple->orange accent, as RGB endpoints for reuse
   // wherever that exact fade needs to be recreated (gradients, sampled colors).
   const ACCENT_PURPLE = [139, 92, 246]; // #8b5cf6
   const ACCENT_ORANGE = [242, 165, 65]; // #f2a541
+  // The exact midpoint of that fade — used as a second anchor for Lifestyle's
+  // subcategories, which need two colors to stay distinguishable since
+  // Lifestyle only has one identity color of its own.
+  const ACCENT_MID = mixRgb(ACCENT_PURPLE, ACCENT_ORANGE, 0.5);
 
   // Rounded, offset slices for exploded donuts — except a single 100% slice,
   // which should form one unbroken ring: no rounding (nothing to round against)
@@ -780,9 +774,13 @@
     const keys = Object.keys(subs).filter((s) => totals[s] > 0);
     if (keys.length === 0) return null;
 
-    // One evenly-spaced purple shade per subcategory (as many as are present),
-    // each then used as that slice's own anchor for the dark->light fade.
-    const shades = purpleShades(keys.length);
+    // Subcategory slices reuse their parent category's own color as the fade
+    // anchor. Lifestyle alternates with a second anchor (the midpoint of the
+    // purple->orange fade) since it's the only category with more than two
+    // subcategories, and one color alone isn't enough to tell its slices apart.
+    const anchors = categoryKey === 'Lifestyle'
+      ? keys.map((_, i) => (i % 2 === 0 ? RING_COLORS_RGB.Lifestyle : ACCENT_MID))
+      : keys.map(() => RING_COLORS_RGB[categoryKey]);
 
     const style = explodedSliceStyle(keys.length);
     return {
@@ -791,8 +789,8 @@
         labels: keys,
         datasets: [{
           data: keys.map((s) => totals[s]),
-          backgroundColor: shades,
-          _fadeColors: shades.map(hexToRgb),
+          backgroundColor: anchors.map(toHex),
+          _fadeColors: anchors,
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
