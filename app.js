@@ -487,14 +487,13 @@
     return shadesBetween([139, 92, 246], [196, 181, 253], n); // #8b5cf6 -> #c4b5fd
   }
 
-  function orangeShades(n) {
-    return shadesBetween([242, 165, 65], [254, 215, 170], n); // #f2a541 -> #fed7aa
-  }
-
-  // Rounded slices for exploded donuts, except a single 100% slice which should
-  // form one unbroken ring instead of showing a rounded seam where it meets itself.
+  // Rounded, offset slices for exploded donuts — except a single 100% slice,
+  // which should form one unbroken ring: no rounding (nothing to round against)
+  // and no offset (Chart.js mis-renders a visible seam when a full-circle arc
+  // is offset from center, since it has no real "outward" direction to explode).
   function explodedSliceStyle(n) {
-    return { offset: Array(n).fill(10), borderRadius: n > 1 ? 8 : 0 };
+    if (n <= 1) return { offset: Array(n).fill(0), borderRadius: 0 };
+    return { offset: Array(n).fill(10), borderRadius: 8 };
   }
 
   function bottomLegend() {
@@ -770,14 +769,18 @@
 
     const subCtx = document.getElementById('subscriptionsChart').getContext('2d');
     if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
-    const style = explodedSliceStyle(2);
+    const slices = [
+      { label: 'Subscriptions', value: subscriptionTotal, color: '#f2a541' },
+      { label: 'Other spending', value: monthlyLoggedTotal, color: '#8b5cf6' },
+    ].filter((s) => s.value > 0);
+    const style = explodedSliceStyle(slices.length);
     subscriptionsChart = new Chart(subCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Subscriptions', 'Other spending'],
+        labels: slices.map((s) => s.label),
         datasets: [{
-          data: [subscriptionTotal, monthlyLoggedTotal],
-          backgroundColor: orangeShades(2),
+          data: slices.map((s) => s.value),
+          backgroundColor: slices.map((s) => s.color),
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
