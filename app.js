@@ -474,15 +474,21 @@
 
   // Evenly-spaced purple shades (the accent purple, fading to a lighter tint),
   // n of them, for exploded-donut slices on the Charts page.
-  function purpleShades(n) {
-    const start = [139, 92, 246]; // #8b5cf6
-    const end = [196, 181, 253]; // #c4b5fd
-    if (n <= 1) return ['#8b5cf6'];
+  function shadesBetween(start, end, n) {
+    if (n <= 1) return [`#${start.map((x) => x.toString(16).padStart(2, '0')).join('')}`];
     return Array.from({ length: n }, (_, i) => {
       const t = i / (n - 1);
       const rgb = start.map((s, j) => Math.round(s + (end[j] - s) * t));
       return `#${rgb.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
     });
+  }
+
+  function purpleShades(n) {
+    return shadesBetween([139, 92, 246], [196, 181, 253], n); // #8b5cf6 -> #c4b5fd
+  }
+
+  function orangeShades(n) {
+    return shadesBetween([242, 165, 65], [254, 215, 170], n); // #f2a541 -> #fed7aa
   }
 
   // Rounded slices for exploded donuts, except a single 100% slice which should
@@ -771,7 +777,7 @@
         labels: ['Subscriptions', 'Other spending'],
         datasets: [{
           data: [subscriptionTotal, monthlyLoggedTotal],
-          backgroundColor: purpleShades(2),
+          backgroundColor: orangeShades(2),
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
