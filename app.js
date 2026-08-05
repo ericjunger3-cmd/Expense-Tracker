@@ -2,33 +2,72 @@
   const STORAGE_KEY = 'expenses';
   const LIMIT_STORAGE_KEY = 'dailyLimit';
   const DEFAULT_DAILY_LIMIT = 25;
-  const CATEGORY_LABELS = {
-    Food: 'Food',
-    Transport: 'Transport / Uber',
-    Cinema: 'Cinema / Entertainment',
-    Shopping: 'Shopping',
-    Other: 'Other',
+  const CATEGORIES = {
+    Food: {
+      label: 'Food',
+      color: '#f2a541',
+      subcategories: { Cafeteria: '#f2a541', 'Eating Outside': '#e8873a', 'Ordering Food': '#d9691f' },
+    },
+    Transport: {
+      label: 'Transport',
+      color: '#3d6fd1',
+      subcategories: { 'Train/Bus': '#3d6fd1', Uber: '#5b8def', Scooter: '#2e5aa8' },
+    },
+    Lifestyle: {
+      label: 'Lifestyle',
+      color: '#8b5cf6',
+      subcategories: { Drinks: '#8b5cf6', Dates: '#a78bfa', Tickets: '#7c3aed', Else: '#c4b5fd' },
+    },
   };
-  const CATEGORY_COLORS = {
-    Food: '#f2a541',
-    Transport: '#3d6fd1',
-    Cinema: '#8b5cf6',
-    Shopping: '#2dd4bf',
-    Other: '#94a3b8',
+  const LEGACY_CATEGORY_MAP = {
+    Food: { category: 'Food', subcategory: 'Eating Outside' },
+    Transport: { category: 'Transport', subcategory: 'Uber' },
+    Cinema: { category: 'Lifestyle', subcategory: 'Tickets' },
+    Shopping: { category: 'Lifestyle', subcategory: 'Else' },
+    Other: { category: 'Lifestyle', subcategory: 'Else' },
   };
+  const SUBSCRIPTIONS = [
+    { name: 'Claude', amount: 22.17, day: 20 },
+    { name: 'Spotify', amount: 13.99, day: 30 },
+    { name: 'DAZN', amount: 44.99, day: 26 },
+    { name: 'Viva Gym', amount: 33.90, day: 8 },
+  ];
+
+  function isValidCategory(category, subcategory) {
+    return !!(CATEGORIES[category] && CATEGORIES[category].subcategories[subcategory]);
+  }
+
+  function migrateExpenses(list) {
+    let changed = false;
+    const migrated = list.map((e) => {
+      if (isValidCategory(e.category, e.subcategory)) return e;
+      changed = true;
+      const fallback = LEGACY_CATEGORY_MAP[e.category] || { category: 'Lifestyle', subcategory: 'Else' };
+      return { ...e, category: fallback.category, subcategory: fallback.subcategory };
+    });
+    return { migrated, changed };
+  }
 
   let expenses = loadExpenses();
+  {
+    const { migrated, changed } = migrateExpenses(expenses);
+    expenses = migrated;
+    if (changed) saveExpenses();
+  }
   let dailyLimit = loadDailyLimit();
   let editingId = null;
   let currentWeekChart = null;
   let previousWeekChart = null;
   let categoryChart = null;
+  let subcategoryChart = null;
+  let subscriptionsChart = null;
 
   // ---------- elements ----------
   const form = document.getElementById('expenseForm');
   const formTitle = document.getElementById('formTitle');
   const dateInput = document.getElementById('date');
   const categoryInput = document.getElementById('category');
+  const subcategoryInput = document.getElementById('subcategory');
   const descriptionInput = document.getElementById('description');
   const amountInput = document.getElementById('amount');
   const submitBtn = document.getElementById('submitBtn');
@@ -43,6 +82,9 @@
   const settingsForm = document.getElementById('settingsForm');
   const dailyLimitInput = document.getElementById('dailyLimitInput');
   const categoryEmptyState = document.getElementById('categoryEmptyState');
+  const subcategoryEmptyState = document.getElementById('subcategoryEmptyState');
+  const subscriptionsStat = document.getElementById('subscriptionsStat');
+  const subscriptionsList = document.getElementById('subscriptionsList');
 
   // ---------- storage ----------
   function loadExpenses() {
@@ -110,6 +152,21 @@
     }[c]));
   }
 
+  // ---------- category dropdowns ----------
+  function populateCategoryOptions() {
+    categoryInput.innerHTML = Object.keys(CATEGORIES)
+      .map((c) => `<option value="${c}">${CATEGORIES[c].label}</option>`).join('');
+  }
+
+  function populateSubcategoryOptions(selected) {
+    const cat = CATEGORIES[categoryInput.value];
+    const subs = cat ? Object.keys(cat.subcategories) : [];
+    subcategoryInput.innerHTML = subs.map((s) => `<option value="${s}">${s}</option>`).join('');
+    if (selected && subs.includes(selected)) subcategoryInput.value = selected;
+  }
+
+  categoryInput.addEventListener('change', () => populateSubcategoryOptions());
+
   // ---------- data queries ----------
   function dailyTotal(dateStr) {
     return expenses
@@ -137,7 +194,7 @@
       const itemsHtml = dayExpenses.length
         ? dayExpenses.map((e) => `
             <li class="entry-item" data-id="${e.id}">
-              <span class="entry-category">${escapeHtml(CATEGORY_LABELS[e.category] || e.category)}</span>
+              <span class="entry-category">${escapeHtml((CATEGORIES[e.category] && CATEGORIES[e.category].label) || e.category)} · ${escapeHtml(e.subcategory || '')}</span>
               <span class="entry-amount">${formatEUR(e.amount)}</span>
               <span class="entry-desc">${escapeHtml(e.description)}</span>
               <span class="entry-actions">
@@ -243,16 +300,60 @@
         totalsByCategory[e.category] = (totalsByCategory[e.category] || 0) + e.amount;
       });
 
-    const categories = Object.keys(CATEGORY_LABELS).filter((c) => totalsByCategory[c] > 0);
+    const categories = Object.keys(CATEGORIES).filter((c) => totalsByCategory[c] > 0);
     if (categories.length === 0) return null;
 
     return {
       type: 'doughnut',
       data: {
-        labels: categories.map((c) => CATEGORY_LABELS[c]),
+        labels: categories.map((c) => CATEGORIES[c].label),
         datasets: [{
           data: categories.map((c) => totalsByCategory[c]),
-          backgroundColor: categories.map((c) => CATEGORY_COLORS[c]),
+          backgroundColor: categories.map((c) => CATEGORIES[c].color),
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  function buildSubcategoryChartConfig(dates) {
+    const dateSet = new Set(dates.map(toISODate));
+    const totals = {};
+    expenses
+      .filter((e) => dateSet.has(e.date) && isValidCategory(e.category, e.subcategory))
+      .forEach((e) => {
+        const key = `${e.category}:${e.subcategory}`;
+        totals[key] = (totals[key] || 0) + e.amount;
+      });
+
+    const keys = Object.keys(totals);
+    if (keys.length === 0) return null;
+
+    return {
+      type: 'doughnut',
+      data: {
+        labels: keys.map((k) => {
+          const [cat, sub] = k.split(':');
+          return `${sub} (${CATEGORIES[cat].label})`;
+        }),
+        datasets: [{
+          data: keys.map((k) => totals[k]),
+          backgroundColor: keys.map((k) => {
+            const [cat, sub] = k.split(':');
+            return CATEGORIES[cat].subcategories[sub];
+          }),
           borderWidth: 0,
         }],
       },
@@ -279,10 +380,12 @@
     const currentCtx = document.getElementById('currentWeekChart').getContext('2d');
     const previousCtx = document.getElementById('previousWeekChart').getContext('2d');
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const subcategoryCtx = document.getElementById('subcategoryChart').getContext('2d');
 
     if (currentWeekChart) currentWeekChart.destroy();
     if (previousWeekChart) previousWeekChart.destroy();
     if (categoryChart) { categoryChart.destroy(); categoryChart = null; }
+    if (subcategoryChart) { subcategoryChart.destroy(); subcategoryChart = null; }
 
     currentWeekChart = new Chart(currentCtx, buildChartConfig(currentDates));
     previousWeekChart = new Chart(previousCtx, buildChartConfig(previousDates));
@@ -296,12 +399,70 @@
       categoryCtx.canvas.classList.add('hidden');
       categoryEmptyState.classList.remove('hidden');
     }
+
+    const subcategoryConfig = buildSubcategoryChartConfig(currentDates);
+    if (subcategoryConfig) {
+      subcategoryCtx.canvas.classList.remove('hidden');
+      subcategoryEmptyState.classList.add('hidden');
+      subcategoryChart = new Chart(subcategoryCtx, subcategoryConfig);
+    } else {
+      subcategoryCtx.canvas.classList.add('hidden');
+      subcategoryEmptyState.classList.remove('hidden');
+    }
+  }
+
+  // ---------- rendering: subscriptions ----------
+  function renderSubscriptions() {
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const subscriptionTotal = SUBSCRIPTIONS.reduce((sum, s) => sum + s.amount, 0);
+    const monthlyLoggedTotal = expenses
+      .filter((e) => e.date.startsWith(currentYearMonth))
+      .reduce((sum, e) => sum + e.amount, 0);
+    const denom = subscriptionTotal + monthlyLoggedTotal;
+    const pct = denom > 0 ? (subscriptionTotal / denom) * 100 : 0;
+
+    subscriptionsStat.textContent = `${formatEUR(subscriptionTotal)}/mo · ${pct.toFixed(0)}% of this month's spending`;
+
+    subscriptionsList.innerHTML = SUBSCRIPTIONS.map((s) => `
+      <li class="subscription-item">
+        <span class="subscription-name">${escapeHtml(s.name)}</span>
+        <span class="subscription-day">day ${s.day}</span>
+        <span class="subscription-amount">${formatEUR(s.amount)}</span>
+      </li>`).join('');
+
+    const subCtx = document.getElementById('subscriptionsChart').getContext('2d');
+    if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
+    subscriptionsChart = new Chart(subCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Subscriptions', 'Other spending'],
+        datasets: [{
+          data: [subscriptionTotal, monthlyLoggedTotal],
+          backgroundColor: ['#d1495b', '#94a3b8'],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
+            },
+          },
+        },
+      },
+    });
   }
 
   function renderAll() {
     renderEntries();
     renderStats();
     renderCharts();
+    renderSubscriptions();
   }
 
   // ---------- form handling ----------
@@ -309,6 +470,7 @@
     editingId = null;
     form.reset();
     dateInput.value = toISODate(new Date());
+    populateSubcategoryOptions();
     submitBtn.textContent = 'Add Expense';
     cancelEditBtn.classList.add('hidden');
     formTitle.textContent = 'Add Expense';
@@ -319,6 +481,7 @@
     if (!entry) return;
     dateInput.value = entry.date;
     categoryInput.value = entry.category;
+    populateSubcategoryOptions(entry.subcategory);
     descriptionInput.value = entry.description || '';
     amountInput.value = entry.amount;
     editingId = id;
@@ -340,18 +503,19 @@
     e.preventDefault();
     const date = dateInput.value;
     const category = categoryInput.value;
+    const subcategory = subcategoryInput.value;
     const description = descriptionInput.value.trim();
     const amount = parseFloat(amountInput.value);
 
-    if (!date || !category || Number.isNaN(amount) || amount <= 0) return;
+    if (!date || !isValidCategory(category, subcategory) || Number.isNaN(amount) || amount <= 0) return;
 
     if (editingId) {
       const idx = expenses.findIndex((x) => x.id === editingId);
       if (idx > -1) {
-        expenses[idx] = { ...expenses[idx], date, category, description, amount };
+        expenses[idx] = { ...expenses[idx], date, category, subcategory, description, amount };
       }
     } else {
-      expenses.push({ id: uid(), date, category, description, amount });
+      expenses.push({ id: uid(), date, category, subcategory, description, amount });
     }
 
     saveExpenses();
@@ -405,13 +569,15 @@
         if (!valid) throw new Error('File format not recognized');
 
         if (confirm(`Import ${data.length} expense(s)? This will replace all current data.`)) {
-          expenses = data.map((x) => ({
+          const imported = data.map((x) => ({
             id: x.id || uid(),
             date: x.date,
             category: x.category,
+            subcategory: x.subcategory,
             description: x.description || '',
             amount: x.amount,
           }));
+          expenses = migrateExpenses(imported).migrated;
           saveExpenses();
           resetForm();
           renderAll();
@@ -461,13 +627,14 @@
   }
 
   function applySyncedEntry(entry) {
-    if (!entry || typeof entry.date !== 'string' || !CATEGORY_LABELS[entry.category]) return false;
+    if (!entry || typeof entry.date !== 'string' || !isValidCategory(entry.category, entry.subcategory)) return false;
     const amount = parseFloat(entry.amount);
     if (!Number.isFinite(amount) || amount <= 0) return false;
     expenses.push({
       id: uid(),
       date: entry.date,
       category: entry.category,
+      subcategory: entry.subcategory,
       description: entry.description || '',
       amount,
     });
@@ -549,6 +716,8 @@
   })();
 
   // ---------- init ----------
+  populateCategoryOptions();
+  populateSubcategoryOptions();
   dailyLimitDisplay.textContent = formatEUR(dailyLimit);
   dailyLimitInput.value = dailyLimit;
   dateInput.value = toISODate(new Date());

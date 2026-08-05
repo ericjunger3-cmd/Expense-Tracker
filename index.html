@@ -40,13 +40,11 @@
       </div>
       <div class="form-row">
         <label for="category">Category</label>
-        <select id="category" required>
-          <option value="Food">Food</option>
-          <option value="Transport">Transport / Uber</option>
-          <option value="Cinema">Cinema / Entertainment</option>
-          <option value="Shopping">Shopping</option>
-          <option value="Other">Other</option>
-        </select>
+        <select id="category" required></select>
+      </div>
+      <div class="form-row">
+        <label for="subcategory">Subcategory</label>
+        <select id="subcategory" required></select>
       </div>
       <div class="form-row">
         <label for="description">Description (optional)</label>
@@ -97,6 +95,23 @@
       <canvas id="categoryChart"></canvas>
       <p class="empty-note hidden" id="categoryEmptyState">No expenses recorded this week yet.</p>
     </div>
+  </section>
+
+  <section class="card">
+    <h2>This Week by Subcategory</h2>
+    <div class="chart-container category-chart">
+      <canvas id="subcategoryChart"></canvas>
+      <p class="empty-note hidden" id="subcategoryEmptyState">No expenses recorded this week yet.</p>
+    </div>
+  </section>
+
+  <section class="card" id="subscriptionsCard">
+    <h2>Subscriptions</h2>
+    <div class="chart-container category-chart">
+      <canvas id="subscriptionsChart"></canvas>
+    </div>
+    <p class="stat-label" id="subscriptionsStat"></p>
+    <ul class="subscription-list" id="subscriptionsList"></ul>
   </section>
 
   <section class="card" id="entriesCard">
