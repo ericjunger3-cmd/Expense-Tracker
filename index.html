@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Expense Tracker</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Daily Expense Tracker</h1>
+    <p class="subtitle">Daily limit: <span id="dailyLimitDisplay">€25.00</span></p>
+  </header>
+
+  <section class="card" id="syncCard">
+    <h2>Phone Sync</h2>
+    <div class="form-row">
+      <label for="syncGistId">Gist ID</label>
+      <input type="text" id="syncGistId" placeholder="e.g. 8f3a1c9b2e...">
+    </div>
+    <div class="form-row">
+      <label for="syncToken">GitHub token</label>
+      <input type="password" id="syncToken" placeholder="fine-grained PAT, Gists scope">
+    </div>
+    <div class="form-actions">
+      <button type="button" id="syncSaveBtn">Save</button>
+      <button type="button" id="syncNowBtn" class="secondary">Sync now</button>
+    </div>
+    <p id="syncStatus" class="stat-label"></p>
+  </section>
+
+  <section class="card" id="formCard">
+    <h2 id="formTitle">Add Expense</h2>
+    <form id="expenseForm">
+      <div class="form-row">
+        <label for="date">Date</label>
+        <input type="date" id="date" required>
+      </div>
+      <div class="form-row">
+        <label for="category">Category</label>
+        <select id="category" required>
+          <option value="Food">Food</option>
+          <option value="Transport">Transport / Uber</option>
+          <option value="Cinema">Cinema / Entertainment</option>
+          <option value="Shopping">Shopping</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label for="description">Description (optional)</label>
+        <input type="text" id="description" placeholder="e.g. Lunch at cafe" maxlength="80">
+      </div>
+      <div class="form-row">
+        <label for="amount">Amount (€)</label>
+        <input type="number" id="amount" step="0.01" min="0.01" required>
+      </div>
+      <div class="form-actions">
+        <button type="submit" id="submitBtn">Add Expense</button>
+        <button type="button" id="cancelEditBtn" class="secondary hidden">Cancel</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" id="statsCard">
+    <h2>Statistics</h2>
+    <div class="stats-grid">
+      <div class="stat-tile">
+        <span class="stat-label">This week's average / day</span>
+        <span class="stat-value" id="weekAvg">€0.00</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-label">All-time average / day</span>
+        <span class="stat-value" id="allTimeAvg">€0.00</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>This Week (Mon&ndash;Sun)</h2>
+    <div class="chart-container main-chart">
+      <canvas id="currentWeekChart"></canvas>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Previous Week</h2>
+    <div class="chart-container small-chart">
+      <canvas id="previousWeekChart"></canvas>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>This Week by Category</h2>
+    <div class="chart-container category-chart">
+      <canvas id="categoryChart"></canvas>
+      <p class="empty-note hidden" id="categoryEmptyState">No expenses recorded this week yet.</p>
+    </div>
+  </section>
+
+  <section class="card" id="entriesCard">
+    <h2>This Week's Entries</h2>
+    <div id="entriesList"></div>
+  </section>
+
+  <section class="card" id="settingsCard">
+    <h2>Settings</h2>
+    <form id="settingsForm" class="settings-form">
+      <div class="form-row">
+        <label for="dailyLimitInput">Daily limit (€)</label>
+        <input type="number" id="dailyLimitInput" step="0.01" min="0.01" required>
+      </div>
+      <button type="submit">Save Limit</button>
+    </form>
+  </section>
+
+  <section class="card" id="backupCard">
+    <h2>Backup</h2>
+    <div class="backup-actions">
+      <button id="exportBtn" type="button">Export JSON</button>
+      <label class="file-btn">
+        Import JSON
+        <input type="file" id="importInput" accept="application/json" class="hidden">
+      </label>
+    </div>
+  </section>
+
+</div>
+
+<script src="lib/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
