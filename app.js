@@ -318,26 +318,74 @@
     return "Well, today's budget left the chat entirely.";
   }
 
+  // What the "Today" gauge card shows for the active scope tab. Week keeps the
+  // literal daily snapshot; Month/Total scale (or drop) the limit accordingly.
+  function gaugePeriodContext() {
+    if (currentScope === 'week') {
+      const todayStr = toISODate(new Date());
+      return {
+        title: 'Today',
+        spent: dailyTotal(todayStr),
+        limit: dailyLimit,
+        limitLabel: 'daily limit',
+        dateSet: new Set([todayStr]),
+      };
+    }
+    if (currentScope === 'month') {
+      const dateSet = new Set(currentMonthDates().map(toISODate));
+      const spent = expenses.filter((e) => dateSet.has(e.date)).reduce((sum, e) => sum + e.amount, 0);
+      return {
+        title: 'This Month',
+        spent,
+        limit: dailyLimit * 30,
+        limitLabel: 'monthly limit',
+        dateSet,
+      };
+    }
+    return {
+      title: 'All Time',
+      spent: expenses.reduce((sum, e) => sum + e.amount, 0),
+      limit: null,
+      limitLabel: null,
+      dateSet: null,
+    };
+  }
+
   function renderGauge() {
     const todayStr = toISODate(new Date());
     const spentToday = dailyTotal(todayStr);
-    const remaining = Math.max(dailyLimit - spentToday, 0);
-    const over = spentToday > dailyLimit;
-    const pct = dailyLimit > 0 ? Math.round((spentToday / dailyLimit) * 100) : 0;
+    const todayPct = dailyLimit > 0 ? Math.round((spentToday / dailyLimit) * 100) : 0;
+    headerMood.textContent = moodSentence(todayPct);
 
-    document.getElementById('gaugeSpentToday').textContent = formatEUR(spentToday);
-    document.getElementById('gaugePct').textContent = `${pct}% of ${formatEUR(dailyLimit)} daily limit`;
-    headerMood.textContent = moodSentence(pct);
+    const { title, spent, limit, limitLabel } = gaugePeriodContext();
+    document.getElementById('gaugeCardTitle').textContent = title;
+    document.getElementById('gaugeSpentToday').textContent = formatEUR(spent);
+    const pctEl = document.getElementById('gaugePct');
 
     const canvas = document.getElementById('budgetGauge');
     const ctx = canvas.getContext('2d');
     const gradient = ctx.createLinearGradient(0, 0, canvas.clientWidth || 260, 0);
-    if (over) {
-      gradient.addColorStop(0, '#e0555f');
-      gradient.addColorStop(1, '#c23f49');
-    } else {
+
+    let gaugeData;
+    if (limit === null) {
+      // No limit to gauge against (Total) — full decorative ring, no percentage text.
+      pctEl.textContent = '';
       gradient.addColorStop(0, '#8b5cf6');
       gradient.addColorStop(1, '#f2a541');
+      gaugeData = [1, 0];
+    } else {
+      const remaining = Math.max(limit - spent, 0);
+      const over = spent > limit;
+      const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+      pctEl.textContent = `${pct}% of ${formatEUR(limit)} ${limitLabel}`;
+      if (over) {
+        gradient.addColorStop(0, '#e0555f');
+        gradient.addColorStop(1, '#c23f49');
+      } else {
+        gradient.addColorStop(0, '#8b5cf6');
+        gradient.addColorStop(1, '#f2a541');
+      }
+      gaugeData = over ? [limit, 0] : [spent, remaining];
     }
 
     if (budgetGaugeChart) { budgetGaugeChart.destroy(); budgetGaugeChart = null; }
@@ -345,7 +393,7 @@
       type: 'doughnut',
       data: {
         datasets: [{
-          data: over ? [dailyLimit, 0] : [spentToday, remaining],
+          data: gaugeData,
           backgroundColor: [gradient, cssVar('--surface-2')],
           borderWidth: 0,
           borderRadius: 20,
@@ -367,9 +415,9 @@
   const RING_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
 
   function renderRings() {
-    const todayStr = toISODate(new Date());
-    const todaysExpenses = expenses.filter((e) => e.date === todayStr);
-    const totalToday = todaysExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const { dateSet } = gaugePeriodContext();
+    const periodExpenses = expenses.filter((e) => !dateSet || dateSet.has(e.date));
+    const totalPeriod = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
     const container = document.getElementById('categoryRings');
 
     Object.values(ringCharts).forEach((c) => c && c.destroy());
@@ -386,7 +434,7 @@
     `).join('');
 
     Object.keys(CATEGORIES).forEach((c) => {
-      const amount = todaysExpenses
+      const amount = periodExpenses
         .filter((e) => e.category === c)
         .reduce((sum, e) => sum + e.amount, 0);
       const valueEl = document.getElementById(`ringValue${c}`);
@@ -397,7 +445,7 @@
         type: 'doughnut',
         data: {
           datasets: [{
-            data: totalToday > 0 ? [amount, Math.max(totalToday - amount, 0)] : [0, 1],
+            data: totalPeriod > 0 ? [amount, Math.max(totalPeriod - amount, 0)] : [0, 1],
             backgroundColor: [RING_COLORS[c], cssVar('--surface-2')],
             borderWidth: 0,
             borderRadius: 10,

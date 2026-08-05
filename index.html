@@ -54,8 +54,16 @@
   <!-- ================= HOME ================= -->
   <section class="page" data-page="home" id="pageHome">
 
+    <div class="tabs">
+      <div class="segmented" role="tablist">
+        <button type="button" class="scope-tab active" data-scope="week" role="tab" aria-selected="true">Week</button>
+        <button type="button" class="scope-tab" data-scope="month" role="tab" aria-selected="false">Month</button>
+        <button type="button" class="scope-tab" data-scope="all" role="tab" aria-selected="false">Total</button>
+      </div>
+    </div>
+
     <section class="panel">
-      <h2>Today</h2>
+      <h2 id="gaugeCardTitle">Today</h2>
       <div class="gauge-wrap">
         <canvas id="budgetGauge"></canvas>
         <div class="gauge-center">
@@ -65,14 +73,6 @@
       </div>
       <div class="rings-row" id="categoryRings"></div>
     </section>
-
-    <div class="tabs">
-      <div class="segmented" role="tablist">
-        <button type="button" class="scope-tab active" data-scope="week" role="tab" aria-selected="true">Week</button>
-        <button type="button" class="scope-tab" data-scope="month" role="tab" aria-selected="false">Month</button>
-        <button type="button" class="scope-tab" data-scope="all" role="tab" aria-selected="false">Total</button>
-      </div>
-    </div>
 
     <section class="panel" id="statsCard">
       <h2>Statistics</h2>
@@ -239,6 +239,6 @@
 </div>
 
 <script src="lib/chart.umd.min.js"></script>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
