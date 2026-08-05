@@ -70,7 +70,7 @@
   let currentWeekChart = null;
   let previousWeekChart = null;
   let categoryChart = null;
-  let subcategoryChart = null;
+  let subcategoryCharts = { Food: null, Transport: null, Lifestyle: null };
   let subscriptionsChart = null;
 
   // ---------- elements ----------
@@ -94,7 +94,6 @@
   const settingsForm = document.getElementById('settingsForm');
   const dailyLimitInput = document.getElementById('dailyLimitInput');
   const categoryEmptyState = document.getElementById('categoryEmptyState');
-  const subcategoryEmptyState = document.getElementById('subcategoryEmptyState');
   const subscriptionsStat = document.getElementById('subscriptionsStat');
   const subscriptionsList = document.getElementById('subscriptionsList');
   const themeToggle = document.getElementById('themeToggle');
@@ -374,32 +373,26 @@
     };
   }
 
-  function buildSubcategoryChartConfig(dates) {
+  function buildSubcategoryChartConfigForCategory(dates, categoryKey) {
     const dateSet = new Set(dates.map(toISODate));
+    const subs = CATEGORIES[categoryKey].subcategories;
     const totals = {};
     expenses
-      .filter((e) => dateSet.has(e.date) && isValidCategory(e.category, e.subcategory))
+      .filter((e) => dateSet.has(e.date) && e.category === categoryKey && subs[e.subcategory])
       .forEach((e) => {
-        const key = `${e.category}:${e.subcategory}`;
-        totals[key] = (totals[key] || 0) + e.amount;
+        totals[e.subcategory] = (totals[e.subcategory] || 0) + e.amount;
       });
 
-    const keys = Object.keys(totals);
+    const keys = Object.keys(subs).filter((s) => totals[s] > 0);
     if (keys.length === 0) return null;
 
     return {
       type: 'doughnut',
       data: {
-        labels: keys.map((k) => {
-          const [cat, sub] = k.split(':');
-          return `${sub} (${CATEGORIES[cat].label})`;
-        }),
+        labels: keys,
         datasets: [{
-          data: keys.map((k) => totals[k]),
-          backgroundColor: keys.map((k) => {
-            const [cat, sub] = k.split(':');
-            return CATEGORIES[cat].subcategories[sub];
-          }),
+          data: keys.map((s) => totals[s]),
+          backgroundColor: keys.map((s) => subs[s]),
           borderWidth: 0,
         }],
       },
@@ -426,12 +419,10 @@
     const currentCtx = document.getElementById('currentWeekChart').getContext('2d');
     const previousCtx = document.getElementById('previousWeekChart').getContext('2d');
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-    const subcategoryCtx = document.getElementById('subcategoryChart').getContext('2d');
 
     if (currentWeekChart) currentWeekChart.destroy();
     if (previousWeekChart) previousWeekChart.destroy();
     if (categoryChart) { categoryChart.destroy(); categoryChart = null; }
-    if (subcategoryChart) { subcategoryChart.destroy(); subcategoryChart = null; }
 
     currentWeekChart = new Chart(currentCtx, buildChartConfig(currentDates));
     previousWeekChart = new Chart(previousCtx, buildChartConfig(previousDates));
@@ -446,15 +437,20 @@
       categoryEmptyState.classList.remove('hidden');
     }
 
-    const subcategoryConfig = buildSubcategoryChartConfig(currentDates);
-    if (subcategoryConfig) {
-      subcategoryCtx.canvas.classList.remove('hidden');
-      subcategoryEmptyState.classList.add('hidden');
-      subcategoryChart = new Chart(subcategoryCtx, subcategoryConfig);
-    } else {
-      subcategoryCtx.canvas.classList.add('hidden');
-      subcategoryEmptyState.classList.remove('hidden');
-    }
+    Object.keys(CATEGORIES).forEach((categoryKey) => {
+      const ctx = document.getElementById(`subcategoryChart${categoryKey}`).getContext('2d');
+      const emptyState = document.getElementById(`subcategoryEmpty${categoryKey}`);
+      if (subcategoryCharts[categoryKey]) { subcategoryCharts[categoryKey].destroy(); subcategoryCharts[categoryKey] = null; }
+      const config = buildSubcategoryChartConfigForCategory(currentDates, categoryKey);
+      if (config) {
+        ctx.canvas.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        subcategoryCharts[categoryKey] = new Chart(ctx, config);
+      } else {
+        ctx.canvas.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+      }
+    });
   }
 
   // ---------- rendering: subscriptions ----------
@@ -657,8 +653,9 @@
   const syncGistIdInput = document.getElementById('syncGistId');
   const syncTokenInput = document.getElementById('syncToken');
   const syncStatusEl = document.getElementById('syncStatus');
+  const syncStatusTopEl = document.getElementById('syncStatusTop');
   const syncSaveBtn = document.getElementById('syncSaveBtn');
-  const syncNowBtn = document.getElementById('syncNowBtn');
+  const syncNowBtnTop = document.getElementById('syncNowBtnTop');
   let syncTimer = null;
 
   function syncSettings() {
@@ -669,8 +666,10 @@
   }
 
   function showSyncStatus(msg, isError) {
-    syncStatusEl.textContent = msg;
-    syncStatusEl.style.color = isError ? 'var(--over)' : '';
+    [syncStatusEl, syncStatusTopEl].forEach((el) => {
+      el.textContent = msg;
+      el.style.color = isError ? 'var(--bad)' : '';
+    });
   }
 
   function ghFetch(url) {
@@ -756,7 +755,7 @@
     restartSyncTimer();
     runSync();
   });
-  syncNowBtn.addEventListener('click', runSync);
+  syncNowBtnTop.addEventListener('click', runSync);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') runSync();
   });

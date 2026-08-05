@@ -17,6 +17,11 @@
     <button class="theme-toggle" id="themeToggle" type="button">Theme: Auto</button>
   </header>
 
+  <div class="sync-bar">
+    <button type="button" id="syncNowBtnTop" class="secondary">Sync now</button>
+    <span id="syncStatusTop" class="stat-label"></span>
+  </div>
+
   <section class="panel" id="statsCard">
     <h2>Statistics</h2>
     <div class="stats-grid">
@@ -54,10 +59,26 @@
   </section>
 
   <section class="panel">
-    <h2>This Week by Subcategory</h2>
+    <h2>Food Subcategories</h2>
     <div class="chart-container category-chart">
-      <canvas id="subcategoryChart"></canvas>
-      <p class="empty-note hidden" id="subcategoryEmptyState">No expenses recorded this week yet.</p>
+      <canvas id="subcategoryChartFood"></canvas>
+      <p class="empty-note hidden" id="subcategoryEmptyFood">No Food expenses recorded this week yet.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Transport Subcategories</h2>
+    <div class="chart-container category-chart">
+      <canvas id="subcategoryChartTransport"></canvas>
+      <p class="empty-note hidden" id="subcategoryEmptyTransport">No Transport expenses recorded this week yet.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Lifestyle Subcategories</h2>
+    <div class="chart-container category-chart">
+      <canvas id="subcategoryChartLifestyle"></canvas>
+      <p class="empty-note hidden" id="subcategoryEmptyLifestyle">No Lifestyle expenses recorded this week yet.</p>
     </div>
   </section>
 
@@ -140,7 +161,6 @@
     </div>
     <div class="form-actions">
       <button type="button" id="syncSaveBtn">Save</button>
-      <button type="button" id="syncNowBtn" class="secondary">Sync now</button>
     </div>
     <p id="syncStatus" class="stat-label"></p>
   </section>

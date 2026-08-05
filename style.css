@@ -104,6 +104,14 @@ h1 {
 }
 .theme-toggle:hover { color: var(--ink); }
 
+.sync-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sync-bar .stat-label { text-transform: none; letter-spacing: normal; font-weight: 500; }
+
 .panel {
   background: var(--surface); border: none; border-radius: 18px;
   padding: 22px; box-shadow: var(--shadow); margin-bottom: 16px;
