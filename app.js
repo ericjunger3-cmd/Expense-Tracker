@@ -97,7 +97,7 @@
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
-  const dailyLimitDisplay = document.getElementById('dailyLimitDisplay');
+  const headerMood = document.getElementById('headerMood');
   const formCard = document.getElementById('formCard');
   const settingsForm = document.getElementById('settingsForm');
   const dailyLimitInput = document.getElementById('dailyLimitInput');
@@ -307,6 +307,17 @@
   }
 
   // ---------- rendering: today's gauge + category rings ----------
+  function moodSentence(pct) {
+    if (pct <= 0) return 'Not a single euro spent today. Suspicious.';
+    if (pct < 40) return 'Off to a light start — plenty of room to spare.';
+    if (pct < 70) return 'Cruising along nicely, nothing to worry about.';
+    if (pct < 90) return 'Getting close to the limit — maybe skip that extra coffee.';
+    if (pct < 100) return 'So close to the edge you can smell the limit.';
+    if (pct === 100) return 'Right on the limit. Precision budgeting at its finest.';
+    if (pct <= 130) return 'A little over budget today... it happens to the best of us.';
+    return "Well, today's budget left the chat entirely.";
+  }
+
   function renderGauge() {
     const todayStr = toISODate(new Date());
     const spentToday = dailyTotal(todayStr);
@@ -316,6 +327,7 @@
 
     document.getElementById('gaugeSpentToday').textContent = formatEUR(spentToday);
     document.getElementById('gaugePct').textContent = `${pct}% of daily budget`;
+    headerMood.textContent = moodSentence(pct);
 
     const canvas = document.getElementById('budgetGauge');
     const ctx = canvas.getContext('2d');
@@ -871,7 +883,6 @@
     if (!Number.isFinite(value) || value <= 0) return;
     dailyLimit = value;
     saveDailyLimit();
-    dailyLimitDisplay.textContent = formatEUR(dailyLimit);
     renderAll();
   });
 
@@ -1064,7 +1075,6 @@
   populateCategoryOptions();
   populateSubcategoryOptions();
   populateSubcategoryChartSelect();
-  dailyLimitDisplay.textContent = formatEUR(dailyLimit);
   dailyLimitInput.value = dailyLimit;
   dateInput.value = toISODate(new Date());
   setPage('home');
