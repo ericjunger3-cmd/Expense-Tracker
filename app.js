@@ -33,13 +33,24 @@
     { name: 'Viva Gym', amount: 33.90, day: 8 },
   ];
 
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
   function isValidCategory(category, subcategory) {
     return !!(CATEGORIES[category] && CATEGORIES[category].subcategories[subcategory]);
   }
 
+  function isValidDate(date) {
+    return typeof date === 'string' && DATE_RE.test(date);
+  }
+
   function migrateExpenses(list) {
     let changed = false;
-    const migrated = list.map((e) => {
+    const withValidDates = list.filter((e) => {
+      if (isValidDate(e.date)) return true;
+      changed = true;
+      return false;
+    });
+    const migrated = withValidDates.map((e) => {
       if (isValidCategory(e.category, e.subcategory)) return e;
       changed = true;
       const fallback = LEGACY_CATEGORY_MAP[e.category] || { category: 'Lifestyle', subcategory: 'Else' };
@@ -661,7 +672,7 @@
   }
 
   function applySyncedEntry(entry) {
-    if (!entry || typeof entry.date !== 'string' || !isValidCategory(entry.category, entry.subcategory)) return false;
+    if (!entry || !isValidDate(entry.date) || !isValidCategory(entry.category, entry.subcategory)) return false;
     const amount = parseFloat(entry.amount);
     if (!Number.isFinite(amount) || amount <= 0) return false;
     expenses.push({
