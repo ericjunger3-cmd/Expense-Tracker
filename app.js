@@ -513,11 +513,6 @@
   const ACCENT_PURPLE = [139, 92, 246]; // #8b5cf6
   const ACCENT_ORANGE = [242, 165, 65]; // #f2a541
 
-  // Midpoint tones (halfway between the base accent color and its lightest tint)
-  // used for the Subscriptions donut, which wants less saturated slice colors.
-  const PURPLE_MID = shadesBetween(ACCENT_PURPLE, [196, 181, 253], 3)[1]; // #8b5cf6 -> #c4b5fd
-  const ORANGE_MID = shadesBetween(ACCENT_ORANGE, [254, 215, 170], 3)[1]; // #f2a541 -> #fed7aa
-
   // Rounded, offset slices for exploded donuts — except a single 100% slice,
   // which should form one unbroken ring: no rounding (nothing to round against)
   // and no offset (Chart.js mis-renders a visible seam when a full-circle arc
@@ -692,23 +687,26 @@
     };
   }
 
-  // Paints each By Category slice with a subtle dark->light fade of its OWN
-  // identity color (RING_COLORS), rather than one gradient shared across the
-  // whole ring — a shared gradient made slices hard to tell apart, since a
-  // category's color depended on its position in the sweep rather than which
-  // category it was. This way Food is always shades of purple no matter how
-  // big or small its slice is, and a bigger Food share simply means more of
-  // the ring reads as purple, not a shift toward another category's hue.
+  // Paints each donut slice with a subtle dark->light fade of its OWN anchor
+  // color (an [r,g,b] array per slice, set on the dataset as `_fadeColors`),
+  // rather than one gradient shared across the whole ring — a shared gradient
+  // made slices hard to tell apart, since a slice's color depended on its
+  // position in the sweep rather than which category/subcategory it was. This
+  // way a slice is always shades of its own color no matter how big or small
+  // it is, and a bigger share simply means more of the ring reads as that
+  // color, not a shift toward a neighboring slice's hue.
   // Must run in beforeDraw and write to each arc's own resolved
   // options.backgroundColor (not just the dataset's) since by draw time
   // Chart.js has already cached each arc's style from the update phase.
-  const categoryFadePlugin = {
-    id: 'categoryFade',
+  const sliceFadePlugin = {
+    id: 'sliceFade',
     beforeDraw(chart) {
       if (typeof chart.ctx.createConicGradient !== 'function') return;
+      const anchors = chart.data.datasets[0]._fadeColors;
+      if (!anchors) return;
       const meta = chart.getDatasetMeta(0);
       meta.data.forEach((arc, i) => {
-        const rgb = RING_COLORS_RGB[chart.data.labels[i]];
+        const rgb = anchors[i];
         if (!rgb) return;
         const sweep = arc.endAngle - arc.startAngle;
         const frac = Math.min(Math.max(sweep / (2 * Math.PI), 0.001), 0.999);
@@ -745,6 +743,7 @@
           datasets: [{
             data: categories.map((c) => totalsByCategory[c]),
             backgroundColor: legendColors,
+            _fadeColors: categories.map((c) => RING_COLORS_RGB[c]),
             offset: style.offset,
             borderWidth: 0,
             borderRadius: style.borderRadius,
@@ -763,7 +762,7 @@
             },
           },
         },
-        plugins: [categoryFadePlugin],
+        plugins: [sliceFadePlugin],
       },
       legendColors,
     };
@@ -781,6 +780,10 @@
     const keys = Object.keys(subs).filter((s) => totals[s] > 0);
     if (keys.length === 0) return null;
 
+    // One evenly-spaced purple shade per subcategory (as many as are present),
+    // each then used as that slice's own anchor for the dark->light fade.
+    const shades = purpleShades(keys.length);
+
     const style = explodedSliceStyle(keys.length);
     return {
       type: 'doughnut',
@@ -788,7 +791,8 @@
         labels: keys,
         datasets: [{
           data: keys.map((s) => totals[s]),
-          backgroundColor: purpleShades(keys.length),
+          backgroundColor: shades,
+          _fadeColors: shades.map(hexToRgb),
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
@@ -807,6 +811,7 @@
           },
         },
       },
+      plugins: [sliceFadePlugin],
     };
   }
 
@@ -897,9 +902,10 @@
 
     const subCtx = document.getElementById('subscriptionsChart').getContext('2d');
     if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
+    // Same two anchor colors as the By Category donut's purple/orange slices.
     const slices = [
-      { label: 'Subscriptions', value: subscriptionTotal, color: ORANGE_MID },
-      { label: 'Other spending', value: monthlyLoggedTotal, color: PURPLE_MID },
+      { label: 'Subscriptions', value: subscriptionTotal, color: toHex(ACCENT_ORANGE), rgb: ACCENT_ORANGE },
+      { label: 'Other spending', value: monthlyLoggedTotal, color: toHex(ACCENT_PURPLE), rgb: ACCENT_PURPLE },
     ].filter((s) => s.value > 0);
     const style = explodedSliceStyle(slices.length);
     subscriptionsChart = new Chart(subCtx, {
@@ -909,6 +915,7 @@
         datasets: [{
           data: slices.map((s) => s.value),
           backgroundColor: slices.map((s) => s.color),
+          _fadeColors: slices.map((s) => s.rgb),
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
@@ -927,6 +934,7 @@
           },
         },
       },
+      plugins: [sliceFadePlugin],
     });
     renderRingLegend('subscriptionsLegend', slices);
   }
