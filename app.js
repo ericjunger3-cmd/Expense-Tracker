@@ -71,7 +71,7 @@
   let currentWeekChart = null;
   let previousWeekChart = null;
   let categoryChart = null;
-  let subcategoryCharts = { Food: null, Transport: null, Lifestyle: null };
+  let subcategoryChart = null;
   let subscriptionsChart = null;
 
   // ---------- elements ----------
@@ -104,6 +104,8 @@
   const settingsForm = document.getElementById('settingsForm');
   const dailyLimitInput = document.getElementById('dailyLimitInput');
   const categoryEmptyState = document.getElementById('categoryEmptyState');
+  const subcategoryChartSelect = document.getElementById('subcategoryChartSelect');
+  const subcategoryEmptyState = document.getElementById('subcategoryEmptyState');
   const subscriptionsStat = document.getElementById('subscriptionsStat');
   const subscriptionsList = document.getElementById('subscriptionsList');
   const themeToggle = document.getElementById('themeToggle');
@@ -232,6 +234,13 @@
   }
 
   categoryInput.addEventListener('change', () => populateSubcategoryOptions());
+
+  function populateSubcategoryChartSelect() {
+    subcategoryChartSelect.innerHTML = Object.keys(CATEGORIES)
+      .map((c) => `<option value="${c}">${CATEGORIES[c].label}</option>`).join('');
+  }
+
+  subcategoryChartSelect.addEventListener('change', renderCharts);
 
   // ---------- data queries ----------
   function dailyTotal(dateStr) {
@@ -542,20 +551,17 @@
       categoryEmptyState.classList.remove('hidden');
     }
 
-    Object.keys(CATEGORIES).forEach((categoryKey) => {
-      const ctx = document.getElementById(`subcategoryChart${categoryKey}`).getContext('2d');
-      const emptyState = document.getElementById(`subcategoryEmpty${categoryKey}`);
-      if (subcategoryCharts[categoryKey]) { subcategoryCharts[categoryKey].destroy(); subcategoryCharts[categoryKey] = null; }
-      const config = buildSubcategoryChartConfigForCategory(dateSet, categoryKey);
-      if (config) {
-        ctx.canvas.classList.remove('hidden');
-        emptyState.classList.add('hidden');
-        subcategoryCharts[categoryKey] = new Chart(ctx, config);
-      } else {
-        ctx.canvas.classList.add('hidden');
-        emptyState.classList.remove('hidden');
-      }
-    });
+    const subcategoryCtx = document.getElementById('subcategoryChart').getContext('2d');
+    if (subcategoryChart) { subcategoryChart.destroy(); subcategoryChart = null; }
+    const subcategoryConfig = buildSubcategoryChartConfigForCategory(dateSet, subcategoryChartSelect.value);
+    if (subcategoryConfig) {
+      subcategoryCtx.canvas.classList.remove('hidden');
+      subcategoryEmptyState.classList.add('hidden');
+      subcategoryChart = new Chart(subcategoryCtx, subcategoryConfig);
+    } else {
+      subcategoryCtx.canvas.classList.add('hidden');
+      subcategoryEmptyState.classList.remove('hidden');
+    }
   }
 
   // ---------- rendering: subscriptions ----------
@@ -902,6 +908,7 @@
   // ---------- init ----------
   populateCategoryOptions();
   populateSubcategoryOptions();
+  populateSubcategoryChartSelect();
   dailyLimitDisplay.textContent = formatEUR(dailyLimit);
   dailyLimitInput.value = dailyLimit;
   dateInput.value = toISODate(new Date());

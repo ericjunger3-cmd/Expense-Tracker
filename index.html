@@ -69,26 +69,14 @@
   </section>
 
   <section class="panel">
-    <h2>Food Subcategories</h2>
-    <div class="chart-container category-chart">
-      <canvas id="subcategoryChartFood"></canvas>
-      <p class="empty-note hidden" id="subcategoryEmptyFood">No Food expenses recorded this week yet.</p>
+    <h2>Subcategories</h2>
+    <div class="form-row">
+      <label for="subcategoryChartSelect">Category</label>
+      <select id="subcategoryChartSelect"></select>
     </div>
-  </section>
-
-  <section class="panel">
-    <h2>Transport Subcategories</h2>
     <div class="chart-container category-chart">
-      <canvas id="subcategoryChartTransport"></canvas>
-      <p class="empty-note hidden" id="subcategoryEmptyTransport">No Transport expenses recorded this week yet.</p>
-    </div>
-  </section>
-
-  <section class="panel">
-    <h2>Lifestyle Subcategories</h2>
-    <div class="chart-container category-chart">
-      <canvas id="subcategoryChartLifestyle"></canvas>
-      <p class="empty-note hidden" id="subcategoryEmptyLifestyle">No Lifestyle expenses recorded this week yet.</p>
+      <canvas id="subcategoryChart"></canvas>
+      <p class="empty-note hidden" id="subcategoryEmptyState">No expenses recorded yet.</p>
     </div>
   </section>
 
