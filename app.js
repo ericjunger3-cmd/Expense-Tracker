@@ -67,6 +67,7 @@
   }
   let dailyLimit = loadDailyLimit();
   let currentScope = 'week';
+  let chartMode = 'total';
   let currentPage = 'home';
   let editingId = null;
   let currentWeekChart = null;
@@ -94,6 +95,7 @@
   const scopeTotalLabel = document.getElementById('scopeTotalLabel');
   const mainChartTitle = document.getElementById('mainChartTitle');
   const previousWeekCard = document.getElementById('previousWeekCard');
+  const mainChartCard = document.getElementById('mainChartCard');
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
@@ -500,133 +502,114 @@
   };
 
   // ---------- rendering: charts ----------
-  function buildChartConfig(dates) {
-    const labels = dates.map((d) => {
-      const weekday = d.toLocaleDateString('en-GB', { weekday: 'short' });
-      const dateLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return `${weekday} ${dateLabel}`;
-    });
-    const totals = dates.map((d) => dailyTotal(toISODate(d)));
-    const barColors = totals.map((t) => (t > dailyLimit ? '#d1495b' : '#3d6fd1'));
-
-    return {
-      data: {
-        labels,
-        datasets: [
-          {
-            type: 'bar',
-            label: 'Daily spend',
-            data: totals,
-            backgroundColor: barColors,
-            borderRadius: 4,
-            order: 2,
-          },
-          {
-            type: 'line',
-            label: `Daily limit (${formatEUR(dailyLimit)})`,
-            data: labels.map(() => dailyLimit),
-            borderColor: '#d1495b',
-            borderDash: [6, 4],
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: false,
-            order: 1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ${formatEUR(ctx.parsed.y)}`,
-            },
-          },
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: (v) => formatEUR(v), color: cssVar('--ink-secondary') },
-            grid: { color: cssVar('--rule') },
-          },
-          x: {
-            ticks: { color: cssVar('--ink-secondary') },
-            grid: { display: false },
-          },
-        },
-      },
-    };
+  function categoryDailyTotal(dateStr, category) {
+    return expenses
+      .filter((e) => e.date === dateStr && e.category === category)
+      .reduce((sum, e) => sum + e.amount, 0);
   }
 
-  function buildMonthlyTotalsChartConfig() {
-    const totalsByMonth = {};
-    expenses.forEach((e) => {
-      const ym = e.date.slice(0, 7);
-      totalsByMonth[ym] = (totalsByMonth[ym] || 0) + e.amount;
+  const LINE_CATEGORY_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
+
+  // Draws the €-value of the dashed limit line next to its right-hand end,
+  // since this chart style has no y-axis to read the value off of.
+  const limitLineLabelPlugin = {
+    id: 'limitLineLabel',
+    afterDraw(chart) {
+      const datasetIndex = chart.data.datasets.findIndex((ds) => ds.isLimitLine);
+      if (datasetIndex === -1) return;
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (!meta.data.length) return;
+      const lastPoint = meta.data[meta.data.length - 1];
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = '11px ' + (cssVar('--font-body') || 'sans-serif');
+      ctx.fillStyle = cssVar('--ink-muted') || '#999';
+      ctx.textAlign = 'right';
+      ctx.fillText(formatEUR(dailyLimit), lastPoint.x - 4, lastPoint.y + 13);
+      ctx.restore();
+    },
+  };
+
+  function buildLineChartConfig(dates, mode, ctx) {
+    const compact = dates.length > 10;
+    const labels = dates.map((d) => {
+      const dateLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return compact ? dateLabel : `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${dateLabel}`;
     });
-    const months = Object.keys(totalsByMonth).sort();
-    const labels = months.map((ym) => {
-      const [y, m] = ym.split('-').map(Number);
-      return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-    });
-    const totals = months.map((ym) => totalsByMonth[ym]);
-    const budgetLine = months.map((ym) => {
-      const [y, m] = ym.split('-').map(Number);
-      const daysInMonth = new Date(y, m, 0).getDate();
-      return daysInMonth * dailyLimit;
-    });
-    const barColors = totals.map((t, i) => (t > budgetLine[i] ? '#d1495b' : '#3d6fd1'));
+
+    const datasets = [];
+
+    if (mode === 'byCategory') {
+      Object.keys(CATEGORIES).forEach((c) => {
+        const data = dates.map((d) => categoryDailyTotal(toISODate(d), c));
+        datasets.push({
+          label: CATEGORIES[c].label,
+          data,
+          borderColor: LINE_CATEGORY_COLORS[c],
+          backgroundColor: LINE_CATEGORY_COLORS[c],
+          borderWidth: 2,
+          tension: 0.4,
+          pointRadius: 0,
+          fill: false,
+        });
+      });
+    } else {
+      const totals = dates.map((d) => dailyTotal(toISODate(d)));
+      const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.clientWidth || 400, 0);
+      gradient.addColorStop(0, '#8b5cf6');
+      gradient.addColorStop(1, '#f2a541');
+      datasets.push({
+        label: 'Daily spend',
+        data: totals,
+        borderColor: gradient,
+        borderWidth: 2,
+        tension: 0.4,
+        pointRadius: 0,
+        fill: false,
+      });
+      datasets.push({
+        label: `Daily limit (${formatEUR(dailyLimit)})`,
+        data: dates.map(() => dailyLimit),
+        borderColor: cssVar('--ink-muted'),
+        borderDash: [4, 4],
+        borderWidth: 1,
+        pointRadius: 0,
+        fill: false,
+        isLimitLine: true,
+      });
+    }
 
     return {
-      data: {
-        labels,
-        datasets: [
-          {
-            type: 'bar',
-            label: 'Monthly spend',
-            data: totals,
-            backgroundColor: barColors,
-            borderRadius: 4,
-            order: 2,
-          },
-          {
-            type: 'line',
-            label: 'Monthly budget (days × daily limit)',
-            data: budgetLine,
-            borderColor: '#d1495b',
-            borderDash: [6, 4],
-            borderWidth: 2,
-            pointRadius: 0,
-            fill: false,
-            order: 1,
-          },
-        ],
-      },
+      type: 'line',
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: { padding: { top: 14, right: 8, left: 4, bottom: 4 } },
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
+          legend: mode === 'byCategory'
+            ? { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: cssVar('--ink-secondary') } }
+            : { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: ${formatEUR(ctx.parsed.y)}`,
+              label: (c) => `${c.dataset.label}: ${formatEUR(c.parsed.y)}`,
             },
           },
         },
         scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: (v) => formatEUR(v), color: cssVar('--ink-secondary') },
-            grid: { color: cssVar('--rule') },
-          },
+          y: { display: false, beginAtZero: true },
           x: {
-            ticks: { color: cssVar('--ink-secondary') },
-            grid: { display: false },
+            ticks: {
+              color: cssVar('--ink-secondary'),
+              autoSkip: true,
+              maxTicksLimit: compact ? Math.ceil(dates.length / 5) + 1 : dates.length,
+              font: { size: 11 },
+            },
+            grid: { color: cssVar('--rule'), drawTicks: false },
           },
         },
       },
+      plugins: mode === 'total' ? [limitLineLabelPlugin] : [],
     };
   }
 
@@ -713,22 +696,28 @@
     const dates = scopeDates(); // Date[] for week/month, null for all
     const dateSet = dates ? new Set(dates.map(toISODate)) : null;
 
-    const currentCtx = document.getElementById('currentWeekChart').getContext('2d');
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
 
     if (currentWeekChart) { currentWeekChart.destroy(); currentWeekChart = null; }
     if (previousWeekChart) { previousWeekChart.destroy(); previousWeekChart = null; }
     if (categoryChart) { categoryChart.destroy(); categoryChart = null; }
 
-    currentWeekChart = new Chart(currentCtx, currentScope === 'all' ? buildMonthlyTotalsChartConfig() : buildChartConfig(dates));
-
-    if (currentScope === 'week') {
-      previousWeekCard.classList.remove('hidden');
-      const monday = startOfWeek(new Date());
-      const previousCtx = document.getElementById('previousWeekChart').getContext('2d');
-      previousWeekChart = new Chart(previousCtx, buildChartConfig(weekDates(addDays(monday, -7))));
-    } else {
+    if (currentScope === 'all') {
+      mainChartCard.classList.add('hidden');
       previousWeekCard.classList.add('hidden');
+    } else {
+      mainChartCard.classList.remove('hidden');
+      const currentCtx = document.getElementById('currentWeekChart').getContext('2d');
+      currentWeekChart = new Chart(currentCtx, buildLineChartConfig(dates, chartMode, currentCtx));
+
+      if (currentScope === 'week') {
+        previousWeekCard.classList.remove('hidden');
+        const monday = startOfWeek(new Date());
+        const previousCtx = document.getElementById('previousWeekChart').getContext('2d');
+        previousWeekChart = new Chart(previousCtx, buildLineChartConfig(weekDates(addDays(monday, -7)), 'total', previousCtx));
+      } else {
+        previousWeekCard.classList.add('hidden');
+      }
     }
 
     const categoryConfig = buildCategoryChartConfig(dateSet);
@@ -831,6 +820,20 @@
 
   document.querySelectorAll('.scope-tab').forEach((btn) => {
     btn.addEventListener('click', () => setScope(btn.dataset.scope));
+  });
+
+  function setChartMode(mode) {
+    chartMode = mode;
+    document.querySelectorAll('.chart-mode-tab').forEach((btn) => {
+      const active = btn.dataset.mode === mode;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    });
+    renderCharts();
+  }
+
+  document.querySelectorAll('.chart-mode-tab').forEach((btn) => {
+    btn.addEventListener('click', () => setChartMode(btn.dataset.mode));
   });
 
   // ---------- page navigation ----------
