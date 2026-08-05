@@ -66,6 +66,7 @@
     if (changed) saveExpenses();
   }
   let dailyLimit = loadDailyLimit();
+  let currentScope = 'week';
   let editingId = null;
   let currentWeekChart = null;
   let previousWeekChart = null;
@@ -84,13 +85,22 @@
   const submitBtn = document.getElementById('submitBtn');
   const cancelEditBtn = document.getElementById('cancelEditBtn');
   const entriesList = document.getElementById('entriesList');
-  const weekAvgEl = document.getElementById('weekAvg');
-  const allTimeAvgEl = document.getElementById('allTimeAvg');
+  const entriesTitle = document.getElementById('entriesTitle');
+  const scopeAvgEl = document.getElementById('scopeAvg');
+  const scopeAvgLabel = document.getElementById('scopeAvgLabel');
+  const scopeTotalEl = document.getElementById('scopeTotal');
+  const scopeTotalLabel = document.getElementById('scopeTotalLabel');
+  const mainChartTitle = document.getElementById('mainChartTitle');
+  const previousWeekCard = document.getElementById('previousWeekCard');
+  const tabWeek = document.getElementById('tabWeek');
+  const tabMonth = document.getElementById('tabMonth');
+  const tabAll = document.getElementById('tabAll');
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
   const dailyLimitDisplay = document.getElementById('dailyLimitDisplay');
   const formCard = document.getElementById('formCard');
+  const quickAddBtn = document.getElementById('quickAddBtn');
   const settingsForm = document.getElementById('settingsForm');
   const dailyLimitInput = document.getElementById('dailyLimitInput');
   const categoryEmptyState = document.getElementById('categoryEmptyState');
@@ -181,6 +191,22 @@
     return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   }
 
+  function currentMonthDates() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
+  }
+
+  // Returns an array of Date objects for week/month scope, or null for "all time"
+  // (unbounded — callers that need a Set for filtering treat null as "no filter").
+  function scopeDates() {
+    if (currentScope === 'week') return weekDates(startOfWeek(new Date()));
+    if (currentScope === 'month') return currentMonthDates();
+    return null;
+  }
+
   function formatEUR(n) {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n || 0);
   }
@@ -216,12 +242,19 @@
 
   // ---------- rendering: entries ----------
   function renderEntries() {
-    const monday = startOfWeek(new Date());
-    const dates = weekDates(monday);
     const todayStr = toISODate(new Date());
+    let dateStrs;
 
-    entriesList.innerHTML = dates.map((d) => {
-      const dateStr = toISODate(d);
+    if (currentScope === 'all') {
+      // Only dates that actually have expenses — padding every empty day since
+      // the beginning of time would make the list unusable. Most recent first.
+      dateStrs = Array.from(new Set(expenses.map((e) => e.date))).sort().reverse();
+    } else {
+      dateStrs = scopeDates().map(toISODate);
+    }
+
+    entriesList.innerHTML = dateStrs.map((dateStr) => {
+      const d = new Date(`${dateStr}T00:00:00`);
       const dayExpenses = expenses
         .filter((e) => e.date === dateStr)
         .sort((a, b) => a.id < b.id ? 1 : -1);
@@ -234,7 +267,7 @@
       const itemsHtml = dayExpenses.length
         ? dayExpenses.map((e) => `
             <li class="entry-item" data-id="${e.id}">
-              <span class="entry-category">${escapeHtml((CATEGORIES[e.category] && CATEGORIES[e.category].label) || e.category)} · ${escapeHtml(e.subcategory || '')}</span>
+              <span class="entry-category"><span class="category-dot" style="background:${(CATEGORIES[e.category] && CATEGORIES[e.category].subcategories[e.subcategory]) || (CATEGORIES[e.category] && CATEGORIES[e.category].color) || '#94a3b8'}"></span>${escapeHtml((CATEGORIES[e.category] && CATEGORIES[e.category].label) || e.category)} · ${escapeHtml(e.subcategory || '')}</span>
               <span class="entry-amount">${formatEUR(e.amount)}</span>
               <span class="entry-desc">${escapeHtml(e.description)}</span>
               <span class="entry-actions">
@@ -256,23 +289,25 @@
   }
 
   // ---------- rendering: stats ----------
+  const SCOPE_LABELS = { week: "This week's", month: "This month's", all: 'All-time' };
+
   function renderStats() {
-    const monday = startOfWeek(new Date());
-    const dates = weekDates(monday).map(toISODate);
-    const totals = dates.map(dailyTotal);
-    const weekAvg = totals.reduce((a, b) => a + b, 0) / totals.length;
+    let totals;
+    if (currentScope === 'all') {
+      const byDate = {};
+      expenses.forEach((e) => { byDate[e.date] = (byDate[e.date] || 0) + e.amount; });
+      totals = Object.values(byDate);
+    } else {
+      totals = scopeDates().map(toISODate).map(dailyTotal);
+    }
+    const total = totals.reduce((a, b) => a + b, 0);
+    const avg = totals.length ? total / totals.length : 0;
 
-    const byDate = {};
-    expenses.forEach((e) => {
-      byDate[e.date] = (byDate[e.date] || 0) + e.amount;
-    });
-    const activeTotals = Object.values(byDate);
-    const allTimeAvg = activeTotals.length
-      ? activeTotals.reduce((a, b) => a + b, 0) / activeTotals.length
-      : 0;
-
-    weekAvgEl.textContent = formatEUR(weekAvg);
-    allTimeAvgEl.textContent = formatEUR(allTimeAvg);
+    const label = SCOPE_LABELS[currentScope];
+    scopeAvgLabel.textContent = `${label} average / day`;
+    scopeTotalLabel.textContent = `${label} total`;
+    scopeAvgEl.textContent = formatEUR(avg);
+    scopeTotalEl.textContent = formatEUR(total);
   }
 
   // ---------- rendering: charts ----------
@@ -336,11 +371,80 @@
     };
   }
 
-  function buildCategoryChartConfig(dates) {
-    const dateSet = new Set(dates.map(toISODate));
+  function buildMonthlyTotalsChartConfig() {
+    const totalsByMonth = {};
+    expenses.forEach((e) => {
+      const ym = e.date.slice(0, 7);
+      totalsByMonth[ym] = (totalsByMonth[ym] || 0) + e.amount;
+    });
+    const months = Object.keys(totalsByMonth).sort();
+    const labels = months.map((ym) => {
+      const [y, m] = ym.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+    });
+    const totals = months.map((ym) => totalsByMonth[ym]);
+    const budgetLine = months.map((ym) => {
+      const [y, m] = ym.split('-').map(Number);
+      const daysInMonth = new Date(y, m, 0).getDate();
+      return daysInMonth * dailyLimit;
+    });
+    const barColors = totals.map((t, i) => (t > budgetLine[i] ? '#d1495b' : '#3d6fd1'));
+
+    return {
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Monthly spend',
+            data: totals,
+            backgroundColor: barColors,
+            borderRadius: 4,
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: 'Monthly budget (days × daily limit)',
+            data: budgetLine,
+            borderColor: '#d1495b',
+            borderDash: [6, 4],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            order: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: ${formatEUR(ctx.parsed.y)}`,
+            },
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { callback: (v) => formatEUR(v), color: cssVar('--ink-secondary') },
+            grid: { color: cssVar('--rule') },
+          },
+          x: {
+            ticks: { color: cssVar('--ink-secondary') },
+            grid: { display: false },
+          },
+        },
+      },
+    };
+  }
+
+  function buildCategoryChartConfig(dateSet) {
     const totalsByCategory = {};
     expenses
-      .filter((e) => dateSet.has(e.date))
+      .filter((e) => !dateSet || dateSet.has(e.date))
       .forEach((e) => {
         totalsByCategory[e.category] = (totalsByCategory[e.category] || 0) + e.amount;
       });
@@ -373,12 +477,11 @@
     };
   }
 
-  function buildSubcategoryChartConfigForCategory(dates, categoryKey) {
-    const dateSet = new Set(dates.map(toISODate));
+  function buildSubcategoryChartConfigForCategory(dateSet, categoryKey) {
     const subs = CATEGORIES[categoryKey].subcategories;
     const totals = {};
     expenses
-      .filter((e) => dateSet.has(e.date) && e.category === categoryKey && subs[e.subcategory])
+      .filter((e) => (!dateSet || dateSet.has(e.date)) && e.category === categoryKey && subs[e.subcategory])
       .forEach((e) => {
         totals[e.subcategory] = (totals[e.subcategory] || 0) + e.amount;
       });
@@ -412,22 +515,28 @@
   }
 
   function renderCharts() {
-    const monday = startOfWeek(new Date());
-    const currentDates = weekDates(monday);
-    const previousDates = weekDates(addDays(monday, -7));
+    const dates = scopeDates(); // Date[] for week/month, null for all
+    const dateSet = dates ? new Set(dates.map(toISODate)) : null;
 
     const currentCtx = document.getElementById('currentWeekChart').getContext('2d');
-    const previousCtx = document.getElementById('previousWeekChart').getContext('2d');
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
 
-    if (currentWeekChart) currentWeekChart.destroy();
-    if (previousWeekChart) previousWeekChart.destroy();
+    if (currentWeekChart) { currentWeekChart.destroy(); currentWeekChart = null; }
+    if (previousWeekChart) { previousWeekChart.destroy(); previousWeekChart = null; }
     if (categoryChart) { categoryChart.destroy(); categoryChart = null; }
 
-    currentWeekChart = new Chart(currentCtx, buildChartConfig(currentDates));
-    previousWeekChart = new Chart(previousCtx, buildChartConfig(previousDates));
+    currentWeekChart = new Chart(currentCtx, currentScope === 'all' ? buildMonthlyTotalsChartConfig() : buildChartConfig(dates));
 
-    const categoryConfig = buildCategoryChartConfig(currentDates);
+    if (currentScope === 'week') {
+      previousWeekCard.classList.remove('hidden');
+      const monday = startOfWeek(new Date());
+      const previousCtx = document.getElementById('previousWeekChart').getContext('2d');
+      previousWeekChart = new Chart(previousCtx, buildChartConfig(weekDates(addDays(monday, -7))));
+    } else {
+      previousWeekCard.classList.add('hidden');
+    }
+
+    const categoryConfig = buildCategoryChartConfig(dateSet);
     if (categoryConfig) {
       categoryCtx.canvas.classList.remove('hidden');
       categoryEmptyState.classList.add('hidden');
@@ -441,7 +550,7 @@
       const ctx = document.getElementById(`subcategoryChart${categoryKey}`).getContext('2d');
       const emptyState = document.getElementById(`subcategoryEmpty${categoryKey}`);
       if (subcategoryCharts[categoryKey]) { subcategoryCharts[categoryKey].destroy(); subcategoryCharts[categoryKey] = null; }
-      const config = buildSubcategoryChartConfigForCategory(currentDates, categoryKey);
+      const config = buildSubcategoryChartConfigForCategory(dateSet, categoryKey);
       if (config) {
         ctx.canvas.classList.remove('hidden');
         emptyState.classList.add('hidden');
@@ -507,6 +616,27 @@
     renderSubscriptions();
   }
 
+  // ---------- tabs ----------
+  function currentMonthLabel() {
+    return new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+
+  function setScope(scope) {
+    currentScope = scope;
+    [tabWeek, tabMonth, tabAll].forEach((btn) => {
+      const active = btn.id === `tab${scope.charAt(0).toUpperCase()}${scope.slice(1)}`;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    });
+    mainChartTitle.textContent = scope === 'week' ? 'This Week (Mon–Sun)' : scope === 'month' ? currentMonthLabel() : 'All Time';
+    entriesTitle.textContent = scope === 'week' ? "This Week's Entries" : scope === 'month' ? "This Month's Entries" : 'All Entries';
+    renderAll();
+  }
+
+  tabWeek.addEventListener('click', () => setScope('week'));
+  tabMonth.addEventListener('click', () => setScope('month'));
+  tabAll.addEventListener('click', () => setScope('all'));
+
   // ---------- form handling ----------
   function resetForm() {
     editingId = null;
@@ -566,6 +696,11 @@
   });
 
   cancelEditBtn.addEventListener('click', resetForm);
+
+  quickAddBtn.addEventListener('click', () => {
+    formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    amountInput.focus();
+  });
 
   entriesList.addEventListener('click', (e) => {
     const editBtn = e.target.closest('.edit-btn');

@@ -79,6 +79,17 @@
   --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 20px -12px rgba(0,0,0,0.15);
 }
 
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.header, .sync-bar, #statsCard {
+  animation: riseIn 0.4s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .header, .sync-bar, #statsCard { animation: none; }
+}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -104,6 +115,28 @@ h1 {
 }
 .theme-toggle:hover { color: var(--ink); }
 
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px -2px rgba(0,0,0,0.35), var(--shadow);
+  z-index: 40;
+}
+.fab:hover { filter: brightness(1.06); }
+
 .sync-bar {
   display: flex;
   align-items: center;
@@ -111,6 +144,16 @@ h1 {
   margin-bottom: 16px;
 }
 .sync-bar .stat-label { text-transform: none; letter-spacing: normal; font-weight: 500; }
+
+.tabs { margin: 0 0 16px; }
+.segmented { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 2px; gap: 2px; }
+.segmented button {
+  appearance: none; border: none; background: transparent; color: var(--ink-secondary);
+  font-family: var(--font-body); font-size: 13.5px; font-weight: 600;
+  padding: 7px 18px; min-height: unset; border-radius: 8px; cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.segmented button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 
 .panel {
   background: var(--surface); border: none; border-radius: 18px;
@@ -272,6 +315,17 @@ button.danger:hover { filter: none; opacity: 0.75; }
 
 .entry-item .entry-category {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.category-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .entry-item .entry-desc {
