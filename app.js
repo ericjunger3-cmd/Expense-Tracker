@@ -350,6 +350,10 @@
     });
   }
 
+  // Dedicated purple->orange accent colors for the Home rings only — CATEGORIES.color
+  // stays as-is for charts/entry dots elsewhere, this is just the "stand out" treatment.
+  const RING_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
+
   function renderRings() {
     const todayStr = toISODate(new Date());
     const todaysExpenses = expenses.filter((e) => e.date === todayStr);
@@ -373,14 +377,16 @@
       const amount = todaysExpenses
         .filter((e) => e.category === c)
         .reduce((sum, e) => sum + e.amount, 0);
-      document.getElementById(`ringValue${c}`).textContent = formatEUR(amount).replace(/,00\s?€/, '€').replace('€', '');
+      const valueEl = document.getElementById(`ringValue${c}`);
+      valueEl.textContent = formatEUR(amount).replace(/,00\s?€/, '€').replace('€', '');
+      valueEl.style.color = RING_COLORS[c];
       const ctx = document.getElementById(`ring${c}`).getContext('2d');
       ringCharts[c] = new Chart(ctx, {
         type: 'doughnut',
         data: {
           datasets: [{
             data: totalToday > 0 ? [amount, Math.max(totalToday - amount, 0)] : [0, 1],
-            backgroundColor: [CATEGORIES[c].color, cssVar('--surface-2')],
+            backgroundColor: [RING_COLORS[c], cssVar('--surface-2')],
             borderWidth: 0,
             borderRadius: 10,
           }],

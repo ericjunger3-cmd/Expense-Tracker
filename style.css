@@ -290,7 +290,7 @@ button.danger:hover { filter: none; opacity: 0.75; }
 .ring-canvas-wrap { position: relative; width: 76px; height: 76px; }
 .ring-canvas-wrap .ring-value {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-round); font-size: 12px; font-weight: 700;
+  font-family: var(--font-round); font-size: 15px; font-weight: 700;
 }
 .ring-item .ring-label { font-size: 11px; color: var(--ink-secondary); font-weight: 600; }
 
