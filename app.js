@@ -88,6 +88,7 @@
   const allTimeAvgEl = document.getElementById('allTimeAvg');
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
+  const clearAllBtn = document.getElementById('clearAllBtn');
   const dailyLimitDisplay = document.getElementById('dailyLimitDisplay');
   const formCard = document.getElementById('formCard');
   const settingsForm = document.getElementById('settingsForm');
@@ -633,6 +634,14 @@
     };
     reader.readAsText(file);
     importInput.value = '';
+  });
+
+  clearAllBtn.addEventListener('click', () => {
+    if (!confirm('Delete ALL expenses on this device? This cannot be undone.')) return;
+    expenses = [];
+    saveExpenses();
+    resetForm();
+    renderAll();
   });
 
   // ---------- phone sync (GitHub Gist relay) ----------
