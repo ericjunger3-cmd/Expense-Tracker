@@ -77,6 +77,7 @@
   let subscriptionsChart = null;
   let budgetGaugeChart = null;
   let ringCharts = {};
+  let legendRingCharts = {};
 
   // ---------- elements ----------
   const form = document.getElementById('expenseForm');
@@ -501,8 +502,54 @@
     return { offset: Array(n).fill(10), borderRadius: 8 };
   }
 
-  function bottomLegend() {
-    return { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: cssVar('--ink-secondary') } };
+  // Renders a Home-style ring row (small % ring + label per slice) under a donut,
+  // reusing the same .rings-row markup/charts as the Home page's category rings.
+  function renderRingLegend(containerId, entries) {
+    const container = document.getElementById(containerId);
+    Object.keys(legendRingCharts).forEach((key) => {
+      if (!key.startsWith(`${containerId}::`)) return;
+      legendRingCharts[key].destroy();
+      delete legendRingCharts[key];
+    });
+
+    if (!entries.length) { container.innerHTML = ''; return; }
+
+    const total = entries.reduce((sum, e) => sum + e.value, 0);
+
+    container.innerHTML = entries.map((e, i) => `
+      <div class="ring-item">
+        <div class="ring-canvas-wrap">
+          <canvas id="${containerId}Ring${i}"></canvas>
+          <span class="ring-value" id="${containerId}Value${i}">0%</span>
+        </div>
+        <span class="ring-label">${escapeHtml(e.label)}</span>
+      </div>
+    `).join('');
+
+    entries.forEach((e, i) => {
+      const pct = total > 0 ? Math.round((e.value / total) * 100) : 0;
+      const valueEl = document.getElementById(`${containerId}Value${i}`);
+      valueEl.textContent = `${pct}%`;
+      valueEl.style.color = e.color;
+      const ctx = document.getElementById(`${containerId}Ring${i}`).getContext('2d');
+      legendRingCharts[`${containerId}::${i}`] = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: total > 0 ? [e.value, Math.max(total - e.value, 0)] : [0, 1],
+            backgroundColor: [e.color, cssVar('--surface-2')],
+            borderWidth: 0,
+            borderRadius: 10,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '88%',
+          plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        },
+      });
+    });
   }
 
   // Draws the €-value of the dashed limit line next to its right-hand end,
@@ -649,7 +696,7 @@
         maintainAspectRatio: false,
         layout: { padding: 8 },
         plugins: {
-          legend: bottomLegend(),
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -690,7 +737,7 @@
         maintainAspectRatio: false,
         layout: { padding: 8 },
         plugins: {
-          legend: bottomLegend(),
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -738,6 +785,13 @@
       categoryCtx.canvas.classList.add('hidden');
       categoryEmptyState.classList.remove('hidden');
     }
+    renderRingLegend('categoryLegend', categoryConfig
+      ? categoryConfig.data.labels.map((label, i) => ({
+        label,
+        value: categoryConfig.data.datasets[0].data[i],
+        color: categoryConfig.data.datasets[0].backgroundColor[i],
+      }))
+      : []);
 
     const subcategoryCtx = document.getElementById('subcategoryChart').getContext('2d');
     if (subcategoryChart) { subcategoryChart.destroy(); subcategoryChart = null; }
@@ -750,6 +804,13 @@
       subcategoryCtx.canvas.classList.add('hidden');
       subcategoryEmptyState.classList.remove('hidden');
     }
+    renderRingLegend('subcategoryLegend', subcategoryConfig
+      ? subcategoryConfig.data.labels.map((label, i) => ({
+        label,
+        value: subcategoryConfig.data.datasets[0].data[i],
+        color: subcategoryConfig.data.datasets[0].backgroundColor[i],
+      }))
+      : []);
   }
 
   // ---------- rendering: subscriptions ----------
@@ -796,7 +857,7 @@
         maintainAspectRatio: false,
         layout: { padding: 8 },
         plugins: {
-          legend: bottomLegend(),
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -805,6 +866,7 @@
         },
       },
     });
+    renderRingLegend('subscriptionsLegend', slices);
   }
 
   function renderAll() {
