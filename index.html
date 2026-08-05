@@ -7,31 +7,97 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="container">
+<div class="wrap">
 
-  <header>
-    <h1>Daily Expense Tracker</h1>
-    <p class="subtitle">Daily limit: <span id="dailyLimitDisplay">€25.00</span></p>
+  <header class="header">
+    <div>
+      <h1>Daily Expense Tracker</h1>
+      <p class="lede">Daily limit: <span id="dailyLimitDisplay">€25.00</span></p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Theme: Auto</button>
   </header>
 
-  <section class="card" id="syncCard">
-    <h2>Phone Sync</h2>
-    <div class="form-row">
-      <label for="syncGistId">Gist ID</label>
-      <input type="text" id="syncGistId" placeholder="e.g. 8f3a1c9b2e...">
+  <section class="panel" id="statsCard">
+    <h2>Statistics</h2>
+    <div class="stats-grid">
+      <div class="stat-tile">
+        <span class="stat-label">This week's average / day</span>
+        <span class="stat-value" id="weekAvg">€0.00</span>
+      </div>
+      <div class="stat-tile">
+        <span class="stat-label">All-time average / day</span>
+        <span class="stat-value" id="allTimeAvg">€0.00</span>
+      </div>
     </div>
-    <div class="form-row">
-      <label for="syncToken">GitHub token</label>
-      <input type="password" id="syncToken" placeholder="fine-grained PAT, Gists scope">
-    </div>
-    <div class="form-actions">
-      <button type="button" id="syncSaveBtn">Save</button>
-      <button type="button" id="syncNowBtn" class="secondary">Sync now</button>
-    </div>
-    <p id="syncStatus" class="stat-label"></p>
   </section>
 
-  <section class="card" id="formCard">
+  <section class="panel">
+    <h2>This Week (Mon&ndash;Sun)</h2>
+    <div class="chart-container main-chart">
+      <canvas id="currentWeekChart"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Previous Week</h2>
+    <div class="chart-container small-chart">
+      <canvas id="previousWeekChart"></canvas>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>This Week by Category</h2>
+    <div class="chart-container category-chart">
+      <canvas id="categoryChart"></canvas>
+      <p class="empty-note hidden" id="categoryEmptyState">No expenses recorded this week yet.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>This Week by Subcategory</h2>
+    <div class="chart-container category-chart">
+      <canvas id="subcategoryChart"></canvas>
+      <p class="empty-note hidden" id="subcategoryEmptyState">No expenses recorded this week yet.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="subscriptionsCard">
+    <h2>Subscriptions</h2>
+    <div class="chart-container category-chart">
+      <canvas id="subscriptionsChart"></canvas>
+    </div>
+    <p class="stat-label" id="subscriptionsStat"></p>
+    <ul class="subscription-list" id="subscriptionsList"></ul>
+  </section>
+
+  <section class="panel" id="entriesCard">
+    <h2>This Week's Entries</h2>
+    <div id="entriesList"></div>
+  </section>
+
+  <section class="panel" id="settingsCard">
+    <h2>Settings</h2>
+    <form id="settingsForm" class="settings-form">
+      <div class="form-row">
+        <label for="dailyLimitInput">Daily limit (€)</label>
+        <input type="number" id="dailyLimitInput" step="0.01" min="0.01" required>
+      </div>
+      <button type="submit">Save Limit</button>
+    </form>
+  </section>
+
+  <section class="panel" id="backupCard">
+    <h2>Backup</h2>
+    <div class="backup-actions">
+      <button id="exportBtn" type="button">Export JSON</button>
+      <label class="file-btn">
+        Import JSON
+        <input type="file" id="importInput" accept="application/json" class="hidden">
+      </label>
+    </div>
+  </section>
+
+  <section class="panel" id="formCard">
     <h2 id="formTitle">Add Expense</h2>
     <form id="expenseForm">
       <div class="form-row">
@@ -61,84 +127,21 @@
     </form>
   </section>
 
-  <section class="card" id="statsCard">
-    <h2>Statistics</h2>
-    <div class="stats-grid">
-      <div class="stat-tile">
-        <span class="stat-label">This week's average / day</span>
-        <span class="stat-value" id="weekAvg">€0.00</span>
-      </div>
-      <div class="stat-tile">
-        <span class="stat-label">All-time average / day</span>
-        <span class="stat-value" id="allTimeAvg">€0.00</span>
-      </div>
+  <section class="panel" id="syncCard">
+    <h2>Phone Sync</h2>
+    <div class="form-row">
+      <label for="syncGistId">Gist ID</label>
+      <input type="text" id="syncGistId" placeholder="e.g. 8f3a1c9b2e...">
     </div>
-  </section>
-
-  <section class="card">
-    <h2>This Week (Mon&ndash;Sun)</h2>
-    <div class="chart-container main-chart">
-      <canvas id="currentWeekChart"></canvas>
+    <div class="form-row">
+      <label for="syncToken">GitHub token</label>
+      <input type="password" id="syncToken" placeholder="fine-grained PAT, Gists scope">
     </div>
-  </section>
-
-  <section class="card">
-    <h2>Previous Week</h2>
-    <div class="chart-container small-chart">
-      <canvas id="previousWeekChart"></canvas>
+    <div class="form-actions">
+      <button type="button" id="syncSaveBtn">Save</button>
+      <button type="button" id="syncNowBtn" class="secondary">Sync now</button>
     </div>
-  </section>
-
-  <section class="card">
-    <h2>This Week by Category</h2>
-    <div class="chart-container category-chart">
-      <canvas id="categoryChart"></canvas>
-      <p class="empty-note hidden" id="categoryEmptyState">No expenses recorded this week yet.</p>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>This Week by Subcategory</h2>
-    <div class="chart-container category-chart">
-      <canvas id="subcategoryChart"></canvas>
-      <p class="empty-note hidden" id="subcategoryEmptyState">No expenses recorded this week yet.</p>
-    </div>
-  </section>
-
-  <section class="card" id="subscriptionsCard">
-    <h2>Subscriptions</h2>
-    <div class="chart-container category-chart">
-      <canvas id="subscriptionsChart"></canvas>
-    </div>
-    <p class="stat-label" id="subscriptionsStat"></p>
-    <ul class="subscription-list" id="subscriptionsList"></ul>
-  </section>
-
-  <section class="card" id="entriesCard">
-    <h2>This Week's Entries</h2>
-    <div id="entriesList"></div>
-  </section>
-
-  <section class="card" id="settingsCard">
-    <h2>Settings</h2>
-    <form id="settingsForm" class="settings-form">
-      <div class="form-row">
-        <label for="dailyLimitInput">Daily limit (€)</label>
-        <input type="number" id="dailyLimitInput" step="0.01" min="0.01" required>
-      </div>
-      <button type="submit">Save Limit</button>
-    </form>
-  </section>
-
-  <section class="card" id="backupCard">
-    <h2>Backup</h2>
-    <div class="backup-actions">
-      <button id="exportBtn" type="button">Export JSON</button>
-      <label class="file-btn">
-        Import JSON
-        <input type="file" id="importInput" accept="application/json" class="hidden">
-      </label>
-    </div>
+    <p id="syncStatus" class="stat-label"></p>
   </section>
 
 </div>

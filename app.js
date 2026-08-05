@@ -85,6 +85,35 @@
   const subcategoryEmptyState = document.getElementById('subcategoryEmptyState');
   const subscriptionsStat = document.getElementById('subscriptionsStat');
   const subscriptionsList = document.getElementById('subscriptionsList');
+  const themeToggle = document.getElementById('themeToggle');
+
+  // ---------- theme ----------
+  const THEME_KEY = 'expenseTrackerTheme';
+
+  function applyTheme(mode) {
+    if (mode) document.documentElement.setAttribute('data-theme', mode);
+    else document.documentElement.removeAttribute('data-theme');
+    themeToggle.textContent = `Theme: ${mode ? mode.charAt(0).toUpperCase() + mode.slice(1) : 'Auto'}`;
+  }
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  (function initTheme() {
+    applyTheme(localStorage.getItem(THEME_KEY) || null);
+  })();
+
+  themeToggle.addEventListener('click', () => {
+    const order = [null, 'dark', 'light'];
+    const cur = localStorage.getItem(THEME_KEY);
+    const idx = order.indexOf(cur) === -1 ? 0 : order.indexOf(cur);
+    const next = order[(idx + 1) % order.length];
+    if (next) localStorage.setItem(THEME_KEY, next);
+    else localStorage.removeItem(THEME_KEY);
+    applyTheme(next);
+    renderAll();
+  });
 
   // ---------- storage ----------
   function loadExpenses() {
@@ -274,7 +303,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.dataset.label}: ${formatEUR(ctx.parsed.y)}`,
@@ -284,7 +313,12 @@
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { callback: (v) => formatEUR(v) },
+            ticks: { callback: (v) => formatEUR(v), color: cssVar('--ink-secondary') },
+            grid: { color: cssVar('--rule') },
+          },
+          x: {
+            ticks: { color: cssVar('--ink-secondary') },
+            grid: { display: false },
           },
         },
       },
@@ -317,7 +351,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -361,7 +395,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -447,7 +481,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: cssVar('--ink-secondary') } },
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
