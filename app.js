@@ -416,6 +416,9 @@
   // Dedicated purple->orange accent colors for the Home rings only — CATEGORIES.color
   // stays as-is for charts/entry dots elsewhere, this is just the "stand out" treatment.
   const RING_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
+  const RING_COLORS_RGB = Object.fromEntries(
+    Object.entries(RING_COLORS).map(([c, hex]) => [c, hexToRgb(hex)]),
+  );
 
   function renderRings() {
     const { dateSet } = gaugePeriodContext();
@@ -473,10 +476,26 @@
 
   const LINE_CATEGORY_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
 
+  function toHex(rgb) {
+    return `#${rgb.map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  function lighten(rgb, amount) { // amount 0-1, mixes toward white
+    return rgb.map((c) => c + (255 - c) * amount);
+  }
+
+  function darken(rgb, amount) { // amount 0-1, mixes toward black
+    return rgb.map((c) => c * (1 - amount));
+  }
+
   // Interpolates between two [r,g,b] colors at fraction t (0-1).
   function colorAt(start, end, t) {
-    const rgb = start.map((s, j) => Math.round(s + (end[j] - s) * t));
-    return `#${rgb.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+    return toHex(start.map((s, j) => s + (end[j] - s) * t));
   }
 
   // Evenly-spaced shades between two colors, n of them, for exploded-donut slices.
@@ -673,29 +692,32 @@
     };
   }
 
-  // Paints the By Category donut with a purple->orange conic gradient that
-  // sweeps continuously around the ring (same colors as the Home gauge),
-  // instead of each slice getting a flat, separate color. The gradient center
-  // is read from Chart.js's own arc element (arc.x/arc.y) rather than computed
-  // from canvas.clientWidth, since at draw time the canvas already has Chart.js's
-  // devicePixelRatio transform applied — computing our own center beforehand
-  // landed in the wrong coordinate space and produced an almost-flat result.
-  // Setting each arc's own resolved options.backgroundColor (rather than the
-  // dataset-level one) is required too: by beforeDraw, Chart.js has already
-  // cached each arc's resolved style from the update phase, so a dataset-level
-  // change alone never reaches the actual fill.
+  // Paints each By Category slice with a subtle dark->light fade of its OWN
+  // identity color (RING_COLORS), rather than one gradient shared across the
+  // whole ring — a shared gradient made slices hard to tell apart, since a
+  // category's color depended on its position in the sweep rather than which
+  // category it was. This way Food is always shades of purple no matter how
+  // big or small its slice is, and a bigger Food share simply means more of
+  // the ring reads as purple, not a shift toward another category's hue.
+  // Must run in beforeDraw and write to each arc's own resolved
+  // options.backgroundColor (not just the dataset's) since by draw time
+  // Chart.js has already cached each arc's style from the update phase.
   const categoryFadePlugin = {
     id: 'categoryFade',
     beforeDraw(chart) {
       if (typeof chart.ctx.createConicGradient !== 'function') return;
       const meta = chart.getDatasetMeta(0);
-      if (!meta.data.length) return;
-      const center = meta.data[0];
-      const gradient = chart.ctx.createConicGradient(-Math.PI / 2, center.x, center.y);
-      gradient.addColorStop(0, '#8b5cf6');
-      gradient.addColorStop(1, '#f2a541');
-      chart.data.datasets[0].backgroundColor = gradient;
-      meta.data.forEach((arc) => { arc.options.backgroundColor = gradient; });
+      meta.data.forEach((arc, i) => {
+        const rgb = RING_COLORS_RGB[chart.data.labels[i]];
+        if (!rgb) return;
+        const sweep = arc.endAngle - arc.startAngle;
+        const frac = Math.min(Math.max(sweep / (2 * Math.PI), 0.001), 0.999);
+        const gradient = chart.ctx.createConicGradient(arc.startAngle, arc.x, arc.y);
+        gradient.addColorStop(0, toHex(darken(rgb, 0.15)));
+        gradient.addColorStop(frac, toHex(lighten(rgb, 0.32)));
+        gradient.addColorStop(1, toHex(lighten(rgb, 0.32)));
+        arc.options.backgroundColor = gradient;
+      });
     },
   };
 
@@ -710,17 +732,9 @@
     const categories = Object.keys(CATEGORIES).filter((c) => totalsByCategory[c] > 0);
     if (categories.length === 0) return null;
 
-    const total = categories.reduce((sum, c) => sum + totalsByCategory[c], 0);
-    let cumulative = 0;
-    // A flat color per category, sampled from the same fade at each slice's
-    // angular midpoint — used for the legend rings below, and as the fallback
-    // fill if conic gradients aren't supported.
-    const legendColors = categories.map((c) => {
-      const value = totalsByCategory[c];
-      const t = total > 0 ? (cumulative + value / 2) / total : 0;
-      cumulative += value;
-      return colorAt(ACCENT_PURPLE, ACCENT_ORANGE, t);
-    });
+    // Each category's own identity color — used for the legend rings below,
+    // and as the fallback fill if conic gradients aren't supported.
+    const legendColors = categories.map((c) => RING_COLORS[c]);
 
     const style = explodedSliceStyle(categories.length);
     return {
