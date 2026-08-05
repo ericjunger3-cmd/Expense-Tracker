@@ -473,25 +473,31 @@
 
   const LINE_CATEGORY_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
 
-  // Evenly-spaced purple shades (the accent purple, fading to a lighter tint),
-  // n of them, for exploded-donut slices on the Charts page.
+  // Interpolates between two [r,g,b] colors at fraction t (0-1).
+  function colorAt(start, end, t) {
+    const rgb = start.map((s, j) => Math.round(s + (end[j] - s) * t));
+    return `#${rgb.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  // Evenly-spaced shades between two colors, n of them, for exploded-donut slices.
   function shadesBetween(start, end, n) {
-    if (n <= 1) return [`#${start.map((x) => x.toString(16).padStart(2, '0')).join('')}`];
-    return Array.from({ length: n }, (_, i) => {
-      const t = i / (n - 1);
-      const rgb = start.map((s, j) => Math.round(s + (end[j] - s) * t));
-      return `#${rgb.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
-    });
+    if (n <= 1) return [colorAt(start, end, 0)];
+    return Array.from({ length: n }, (_, i) => colorAt(start, end, i / (n - 1)));
   }
 
   function purpleShades(n) {
     return shadesBetween([139, 92, 246], [196, 181, 253], n); // #8b5cf6 -> #c4b5fd
   }
 
+  // The Home gauge's purple->orange accent, as RGB endpoints for reuse
+  // wherever that exact fade needs to be recreated (gradients, sampled colors).
+  const ACCENT_PURPLE = [139, 92, 246]; // #8b5cf6
+  const ACCENT_ORANGE = [242, 165, 65]; // #f2a541
+
   // Midpoint tones (halfway between the base accent color and its lightest tint)
   // used for the Subscriptions donut, which wants less saturated slice colors.
-  const PURPLE_MID = shadesBetween([139, 92, 246], [196, 181, 253], 3)[1]; // #8b5cf6 -> #c4b5fd
-  const ORANGE_MID = shadesBetween([242, 165, 65], [254, 215, 170], 3)[1]; // #f2a541 -> #fed7aa
+  const PURPLE_MID = shadesBetween(ACCENT_PURPLE, [196, 181, 253], 3)[1]; // #8b5cf6 -> #c4b5fd
+  const ORANGE_MID = shadesBetween(ACCENT_ORANGE, [254, 215, 170], 3)[1]; // #f2a541 -> #fed7aa
 
   // Rounded, offset slices for exploded donuts — except a single 100% slice,
   // which should form one unbroken ring: no rounding (nothing to round against)
@@ -667,6 +673,32 @@
     };
   }
 
+  // Paints the By Category donut with a purple->orange conic gradient that
+  // sweeps continuously around the ring (same colors as the Home gauge),
+  // instead of each slice getting a flat, separate color. The gradient center
+  // is read from Chart.js's own arc element (arc.x/arc.y) rather than computed
+  // from canvas.clientWidth, since at draw time the canvas already has Chart.js's
+  // devicePixelRatio transform applied — computing our own center beforehand
+  // landed in the wrong coordinate space and produced an almost-flat result.
+  // Setting each arc's own resolved options.backgroundColor (rather than the
+  // dataset-level one) is required too: by beforeDraw, Chart.js has already
+  // cached each arc's resolved style from the update phase, so a dataset-level
+  // change alone never reaches the actual fill.
+  const categoryFadePlugin = {
+    id: 'categoryFade',
+    beforeDraw(chart) {
+      if (typeof chart.ctx.createConicGradient !== 'function') return;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta.data.length) return;
+      const center = meta.data[0];
+      const gradient = chart.ctx.createConicGradient(-Math.PI / 2, center.x, center.y);
+      gradient.addColorStop(0, '#8b5cf6');
+      gradient.addColorStop(1, '#f2a541');
+      chart.data.datasets[0].backgroundColor = gradient;
+      meta.data.forEach((arc) => { arc.options.backgroundColor = gradient; });
+    },
+  };
+
   function buildCategoryChartConfig(dateSet) {
     const totalsByCategory = {};
     expenses
@@ -678,32 +710,48 @@
     const categories = Object.keys(CATEGORIES).filter((c) => totalsByCategory[c] > 0);
     if (categories.length === 0) return null;
 
+    const total = categories.reduce((sum, c) => sum + totalsByCategory[c], 0);
+    let cumulative = 0;
+    // A flat color per category, sampled from the same fade at each slice's
+    // angular midpoint — used for the legend rings below, and as the fallback
+    // fill if conic gradients aren't supported.
+    const legendColors = categories.map((c) => {
+      const value = totalsByCategory[c];
+      const t = total > 0 ? (cumulative + value / 2) / total : 0;
+      cumulative += value;
+      return colorAt(ACCENT_PURPLE, ACCENT_ORANGE, t);
+    });
+
     const style = explodedSliceStyle(categories.length);
     return {
-      type: 'doughnut',
-      data: {
-        labels: categories.map((c) => CATEGORIES[c].label),
-        datasets: [{
-          data: categories.map((c) => totalsByCategory[c]),
-          backgroundColor: categories.map((c) => RING_COLORS[c]),
-          offset: style.offset,
-          borderWidth: 0,
-          borderRadius: style.borderRadius,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: 8 },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
+      chartConfig: {
+        type: 'doughnut',
+        data: {
+          labels: categories.map((c) => CATEGORIES[c].label),
+          datasets: [{
+            data: categories.map((c) => totalsByCategory[c]),
+            backgroundColor: legendColors,
+            offset: style.offset,
+            borderWidth: 0,
+            borderRadius: style.borderRadius,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          layout: { padding: 8 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
+              },
             },
           },
         },
+        plugins: [categoryFadePlugin],
       },
+      legendColors,
     };
   }
 
@@ -776,20 +824,20 @@
       }
     }
 
-    const categoryConfig = buildCategoryChartConfig(dateSet);
-    if (categoryConfig) {
+    const categoryResult = buildCategoryChartConfig(dateSet);
+    if (categoryResult) {
       categoryCtx.canvas.classList.remove('hidden');
       categoryEmptyState.classList.add('hidden');
-      categoryChart = new Chart(categoryCtx, categoryConfig);
+      categoryChart = new Chart(categoryCtx, categoryResult.chartConfig);
     } else {
       categoryCtx.canvas.classList.add('hidden');
       categoryEmptyState.classList.remove('hidden');
     }
-    renderRingLegend('categoryLegend', categoryConfig
-      ? categoryConfig.data.labels.map((label, i) => ({
+    renderRingLegend('categoryLegend', categoryResult
+      ? categoryResult.chartConfig.data.labels.map((label, i) => ({
         label,
-        value: categoryConfig.data.datasets[0].data[i],
-        color: categoryConfig.data.datasets[0].backgroundColor[i],
+        value: categoryResult.chartConfig.data.datasets[0].data[i],
+        color: categoryResult.legendColors[i],
       }))
       : []);
 
