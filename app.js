@@ -502,10 +502,6 @@
   // wherever that exact fade needs to be recreated (gradients, sampled colors).
   const ACCENT_PURPLE = [139, 92, 246]; // #8b5cf6
   const ACCENT_ORANGE = [242, 165, 65]; // #f2a541
-  // The exact midpoint of that fade — used as a second anchor for Lifestyle's
-  // subcategories, which need two colors to stay distinguishable since
-  // Lifestyle only has one identity color of its own.
-  const ACCENT_MID = mixRgb(ACCENT_PURPLE, ACCENT_ORANGE, 0.5);
 
   // Rounded, offset slices for exploded donuts — except a single 100% slice,
   // which should form one unbroken ring: no rounding (nothing to round against)
@@ -774,13 +770,17 @@
     const keys = Object.keys(subs).filter((s) => totals[s] > 0);
     if (keys.length === 0) return null;
 
-    // Subcategory slices reuse their parent category's own color as the fade
-    // anchor. Lifestyle alternates with a second anchor (the midpoint of the
-    // purple->orange fade) since it's the only category with more than two
-    // subcategories, and one color alone isn't enough to tell its slices apart.
-    const anchors = categoryKey === 'Lifestyle'
-      ? keys.map((_, i) => (i % 2 === 0 ? RING_COLORS_RGB.Lifestyle : ACCENT_MID))
-      : keys.map(() => RING_COLORS_RGB[categoryKey]);
+    // Shades fade from element to element here (not within each slice like the
+    // By Category donut): evenly-spaced dark->light tones of the parent
+    // category's own color, one flat shade per subcategory. Keeps the same
+    // purple/mauve/orange family the category is always shown in everywhere
+    // else in the app, while still telling same-category slices apart.
+    const rgb = RING_COLORS_RGB[categoryKey];
+    const dark = darken(rgb, 0.3);
+    const light = lighten(rgb, 0.4);
+    const shades = keys.length <= 1
+      ? [toHex(rgb)]
+      : keys.map((_, i) => toHex(mixRgb(dark, light, i / (keys.length - 1))));
 
     const style = explodedSliceStyle(keys.length);
     return {
@@ -789,8 +789,7 @@
         labels: keys,
         datasets: [{
           data: keys.map((s) => totals[s]),
-          backgroundColor: anchors.map(toHex),
-          _fadeColors: anchors,
+          backgroundColor: shades,
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
@@ -809,7 +808,6 @@
           },
         },
       },
-      plugins: [sliceFadePlugin],
     };
   }
 
