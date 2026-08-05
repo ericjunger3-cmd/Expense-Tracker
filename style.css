@@ -332,8 +332,8 @@ button.secondary:hover { color: var(--ink); filter: none; }
 }
 
 .subscription-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 56px auto;
   align-items: center;
   gap: 10px;
   padding: 10px 0;
@@ -353,11 +353,14 @@ button.secondary:hover { color: var(--ink); filter: none; }
 .subscription-day {
   color: var(--ink-muted);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .subscription-amount {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 @media (max-width: 480px) {
@@ -367,8 +370,8 @@ button.secondary:hover { color: var(--ink); filter: none; }
   .stats-grid { grid-template-columns: 1fr; }
   .entry-item { grid-template-columns: 1fr; }
   .entry-amount { grid-column: 1; }
-  .chart-container.main-chart { height: 230px; }
-  .chart-container.small-chart { height: 150px; }
-  .chart-container.category-chart { height: 200px; }
+  .chart-container.main-chart { height: 280px; }
+  .chart-container.small-chart { height: 200px; }
+  .chart-container.category-chart { height: 260px; }
   .backup-actions { flex-direction: column; align-items: stretch; }
 }
