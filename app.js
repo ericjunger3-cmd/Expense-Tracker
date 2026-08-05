@@ -346,6 +346,7 @@
         cutout: '78%',
         rotation: 270,
         circumference: 180,
+        layout: { padding: { left: 42, right: 42, top: 0, bottom: 0 } },
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
       },
     });

@@ -287,14 +287,14 @@ button.danger:hover { filter: none; opacity: 0.75; }
 
 .gauge-endpoint {
   position: absolute;
-  top: 44%;
+  top: 50%;
   transform: translateY(-50%);
   font-family: var(--font-round);
   font-size: 13px;
   font-weight: 700;
 }
-.gauge-endpoint.start { left: -6px; color: #8b5cf6; }
-.gauge-endpoint.end { right: -6px; color: #f2a541; }
+.gauge-endpoint.start { left: 0; color: #8b5cf6; }
+.gauge-endpoint.end { right: 0; color: #f2a541; }
 
 .rings-row { display: flex; justify-content: space-around; gap: 12px; margin-top: 12px; }
 .ring-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
