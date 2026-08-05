@@ -487,6 +487,11 @@
     return shadesBetween([139, 92, 246], [196, 181, 253], n); // #8b5cf6 -> #c4b5fd
   }
 
+  // Midpoint tones (halfway between the base accent color and its lightest tint)
+  // used for the Subscriptions donut, which wants less saturated slice colors.
+  const PURPLE_MID = shadesBetween([139, 92, 246], [196, 181, 253], 3)[1]; // #8b5cf6 -> #c4b5fd
+  const ORANGE_MID = shadesBetween([242, 165, 65], [254, 215, 170], 3)[1]; // #f2a541 -> #fed7aa
+
   // Rounded, offset slices for exploded donuts — except a single 100% slice,
   // which should form one unbroken ring: no rounding (nothing to round against)
   // and no offset (Chart.js mis-renders a visible seam when a full-circle arc
@@ -770,8 +775,8 @@
     const subCtx = document.getElementById('subscriptionsChart').getContext('2d');
     if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
     const slices = [
-      { label: 'Subscriptions', value: subscriptionTotal, color: '#f2a541' },
-      { label: 'Other spending', value: monthlyLoggedTotal, color: '#8b5cf6' },
+      { label: 'Subscriptions', value: subscriptionTotal, color: ORANGE_MID },
+      { label: 'Other spending', value: monthlyLoggedTotal, color: PURPLE_MID },
     ].filter((s) => s.value > 0);
     const style = explodedSliceStyle(slices.length);
     subscriptionsChart = new Chart(subCtx, {
