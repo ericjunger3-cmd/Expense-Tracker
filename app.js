@@ -343,8 +343,8 @@
         responsive: true,
         maintainAspectRatio: false,
         cutout: '78%',
-        rotation: -225,
-        circumference: 270,
+        rotation: 270,
+        circumference: 180,
         plugins: { legend: { display: false }, tooltip: { enabled: false } },
       },
     });
