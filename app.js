@@ -502,6 +502,9 @@
   // wherever that exact fade needs to be recreated (gradients, sampled colors).
   const ACCENT_PURPLE = [139, 92, 246]; // #8b5cf6
   const ACCENT_ORANGE = [242, 165, 65]; // #f2a541
+  // The app's existing "over budget" red (Home gauge/entries), reused as the
+  // far end of the Subscriptions donut's orange->red fade.
+  const ACCENT_RED = [194, 63, 73]; // #c23f49
 
   // Rounded, offset slices for exploded donuts — except a single 100% slice,
   // which should form one unbroken ring: no rounding (nothing to round against)
@@ -677,14 +680,12 @@
     };
   }
 
-  // Paints each donut slice with a subtle dark->light fade of its OWN anchor
-  // color (an [r,g,b] array per slice, set on the dataset as `_fadeColors`),
-  // rather than one gradient shared across the whole ring — a shared gradient
-  // made slices hard to tell apart, since a slice's color depended on its
-  // position in the sweep rather than which category/subcategory it was. This
-  // way a slice is always shades of its own color no matter how big or small
-  // it is, and a bigger share simply means more of the ring reads as that
-  // color, not a shift toward a neighboring slice's hue.
+  // Paints each donut slice with its own start->end fade (a [startRgb, endRgb]
+  // pair per slice, set on the dataset as `_fadeColors`), rather than one
+  // gradient shared across the whole ring — a shared gradient made slices hard
+  // to tell apart, since a slice's color depended on its position in the sweep
+  // rather than which category/subcategory it was. This way a slice always
+  // fades within its own assigned range no matter how big or small it is.
   // Must run in beforeDraw and write to each arc's own resolved
   // options.backgroundColor (not just the dataset's) since by draw time
   // Chart.js has already cached each arc's style from the update phase.
@@ -692,18 +693,19 @@
     id: 'sliceFade',
     beforeDraw(chart) {
       if (typeof chart.ctx.createConicGradient !== 'function') return;
-      const anchors = chart.data.datasets[0]._fadeColors;
-      if (!anchors) return;
+      const pairs = chart.data.datasets[0]._fadeColors;
+      if (!pairs) return;
       const meta = chart.getDatasetMeta(0);
       meta.data.forEach((arc, i) => {
-        const rgb = anchors[i];
-        if (!rgb) return;
+        const pair = pairs[i];
+        if (!pair) return;
+        const [start, end] = pair;
         const sweep = arc.endAngle - arc.startAngle;
         const frac = Math.min(Math.max(sweep / (2 * Math.PI), 0.001), 0.999);
         const gradient = chart.ctx.createConicGradient(arc.startAngle, arc.x, arc.y);
-        gradient.addColorStop(0, toHex(darken(rgb, 0.15)));
-        gradient.addColorStop(frac, toHex(lighten(rgb, 0.32)));
-        gradient.addColorStop(1, toHex(lighten(rgb, 0.32)));
+        gradient.addColorStop(0, toHex(start));
+        gradient.addColorStop(frac, toHex(end));
+        gradient.addColorStop(1, toHex(end));
         arc.options.backgroundColor = gradient;
       });
     },
@@ -733,7 +735,10 @@
           datasets: [{
             data: categories.map((c) => totalsByCategory[c]),
             backgroundColor: legendColors,
-            _fadeColors: categories.map((c) => RING_COLORS_RGB[c]),
+            _fadeColors: categories.map((c) => {
+              const rgb = RING_COLORS_RGB[c];
+              return [darken(rgb, 0.15), lighten(rgb, 0.32)];
+            }),
             offset: style.offset,
             borderWidth: 0,
             borderRadius: style.borderRadius,
@@ -898,11 +903,14 @@
 
     const subCtx = document.getElementById('subscriptionsChart').getContext('2d');
     if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
-    // Same two anchor colors as the By Category donut's purple/orange slices.
+    // Other spending covers everything logged in the tracker, so it gets the
+    // full purple->orange fade from the Home gauge. Subscriptions gets its own
+    // orange->red fade, picking up right where Other spending's orange ends.
     const slices = [
-      { label: 'Subscriptions', value: subscriptionTotal, color: toHex(ACCENT_ORANGE), rgb: ACCENT_ORANGE },
-      { label: 'Other spending', value: monthlyLoggedTotal, color: toHex(ACCENT_PURPLE), rgb: ACCENT_PURPLE },
-    ].filter((s) => s.value > 0);
+      { label: 'Other spending', value: monthlyLoggedTotal, pair: [ACCENT_PURPLE, ACCENT_ORANGE] },
+      { label: 'Subscriptions', value: subscriptionTotal, pair: [ACCENT_ORANGE, ACCENT_RED] },
+    ].filter((s) => s.value > 0)
+      .map((s) => ({ ...s, color: toHex(mixRgb(s.pair[0], s.pair[1], 0.5)) }));
     const style = explodedSliceStyle(slices.length);
     subscriptionsChart = new Chart(subCtx, {
       type: 'doughnut',
@@ -911,7 +919,7 @@
         datasets: [{
           data: slices.map((s) => s.value),
           backgroundColor: slices.map((s) => s.color),
-          _fadeColors: slices.map((s) => s.rgb),
+          _fadeColors: slices.map((s) => s.pair),
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
