@@ -326,7 +326,7 @@
     const pct = dailyLimit > 0 ? Math.round((spentToday / dailyLimit) * 100) : 0;
 
     document.getElementById('gaugeSpentToday').textContent = formatEUR(spentToday);
-    document.getElementById('gaugePct').textContent = `${pct}% of daily budget`;
+    document.getElementById('gaugePct').textContent = `${pct}% of ${formatEUR(dailyLimit)} daily limit`;
     headerMood.textContent = moodSentence(pct);
 
     const canvas = document.getElementById('budgetGauge');
