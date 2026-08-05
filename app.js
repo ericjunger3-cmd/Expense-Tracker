@@ -312,11 +312,12 @@
     const spentToday = dailyTotal(todayStr);
     const remaining = Math.max(dailyLimit - spentToday, 0);
     const over = spentToday > dailyLimit;
+    const pct = dailyLimit > 0 ? Math.round((spentToday / dailyLimit) * 100) : 0;
 
     document.getElementById('gaugeSpentToday').textContent = formatEUR(spentToday);
-    document.getElementById('gaugeLeftToday').textContent = over
-      ? `${formatEUR(spentToday - dailyLimit)} over budget`
-      : `of ${formatEUR(dailyLimit)}: ${formatEUR(remaining)} left`;
+    document.getElementById('gaugePct').textContent = `${pct}% of daily budget`;
+    document.getElementById('gaugeStartLabel').textContent = formatEUR(0);
+    document.getElementById('gaugeEndLabel').textContent = formatEUR(dailyLimit);
 
     const canvas = document.getElementById('budgetGauge');
     const ctx = canvas.getContext('2d');
@@ -325,8 +326,8 @@
       gradient.addColorStop(0, '#e0555f');
       gradient.addColorStop(1, '#c23f49');
     } else {
-      gradient.addColorStop(0, '#f2a541');
-      gradient.addColorStop(1, '#8b5cf6');
+      gradient.addColorStop(0, '#8b5cf6');
+      gradient.addColorStop(1, '#f2a541');
     }
 
     if (budgetGaugeChart) { budgetGaugeChart.destroy(); budgetGaugeChart = null; }
