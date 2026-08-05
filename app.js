@@ -685,7 +685,7 @@
         labels: categories.map((c) => CATEGORIES[c].label),
         datasets: [{
           data: categories.map((c) => totalsByCategory[c]),
-          backgroundColor: purpleShades(categories.length),
+          backgroundColor: categories.map((c) => RING_COLORS[c]),
           offset: style.offset,
           borderWidth: 0,
           borderRadius: style.borderRadius,
