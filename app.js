@@ -510,6 +510,18 @@
 
   const LINE_CATEGORY_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
 
+  // Evenly-spaced purple->orange hex colors, n of them, for exploded-donut slices.
+  function purpleOrangeGradientColors(n) {
+    const start = [139, 92, 246]; // #8b5cf6
+    const end = [242, 165, 65]; // #f2a541
+    if (n <= 1) return ['#8b5cf6'];
+    return Array.from({ length: n }, (_, i) => {
+      const t = i / (n - 1);
+      const rgb = start.map((s, j) => Math.round(s + (end[j] - s) * t));
+      return `#${rgb.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+    });
+  }
+
   // Draws the €-value of the dashed limit line next to its right-hand end,
   // since this chart style has no y-axis to read the value off of.
   const limitLineLabelPlugin = {
@@ -642,15 +654,16 @@
         labels: categories.map((c) => CATEGORIES[c].label),
         datasets: [{
           data: categories.map((c) => totalsByCategory[c]),
-          backgroundColor: categories.map((c) => CATEGORIES[c].color),
+          backgroundColor: categories.map((c) => RING_COLORS[c]),
           offset: categories.map(() => 10),
           borderWidth: 0,
+          borderRadius: 18,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: 48 },
+        layout: { padding: { top: 30, bottom: 30, left: 70, right: 70 } },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -682,15 +695,16 @@
         labels: keys,
         datasets: [{
           data: keys.map((s) => totals[s]),
-          backgroundColor: keys.map((s) => subs[s]),
+          backgroundColor: purpleOrangeGradientColors(keys.length),
           offset: keys.map(() => 10),
           borderWidth: 0,
+          borderRadius: 18,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: 48 },
+        layout: { padding: { top: 30, bottom: 30, left: 70, right: 70 } },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -783,15 +797,16 @@
         labels: ['Subscriptions', 'Other spending'],
         datasets: [{
           data: [subscriptionTotal, monthlyLoggedTotal],
-          backgroundColor: ['#d1495b', '#94a3b8'],
+          backgroundColor: purpleOrangeGradientColors(2),
           offset: [10, 10],
           borderWidth: 0,
+          borderRadius: 18,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: 48 },
+        layout: { padding: { top: 30, bottom: 30, left: 70, right: 70 } },
         plugins: {
           legend: { display: false },
           tooltip: {
