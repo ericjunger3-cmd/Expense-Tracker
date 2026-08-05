@@ -905,10 +905,11 @@
     if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
     // Other spending covers everything logged in the tracker, so it gets the
     // full purple->orange fade from the Home gauge. Subscriptions gets its own
-    // orange->red fade, picking up right where Other spending's orange ends.
+    // dark->light red fade, kept fully separate (not starting from orange) so
+    // the two slices read as distinct colors instead of blending together.
     const slices = [
       { label: 'Other spending', value: monthlyLoggedTotal, pair: [ACCENT_PURPLE, ACCENT_ORANGE] },
-      { label: 'Subscriptions', value: subscriptionTotal, pair: [ACCENT_ORANGE, ACCENT_RED] },
+      { label: 'Subscriptions', value: subscriptionTotal, pair: [darken(ACCENT_RED, 0.2), lighten(ACCENT_RED, 0.3)] },
     ].filter((s) => s.value > 0)
       .map((s) => ({ ...s, color: toHex(mixRgb(s.pair[0], s.pair[1], 0.5)) }));
     const style = explodedSliceStyle(slices.length);
