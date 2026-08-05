@@ -533,8 +533,8 @@
   function buildLineChartConfig(dates, mode, ctx) {
     const compact = dates.length > 10;
     const labels = dates.map((d) => {
-      const dateLabel = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return compact ? dateLabel : `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${dateLabel}`;
+      if (compact) return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return d.toLocaleDateString('en-GB', { weekday: 'short' });
     });
 
     const datasets = [];
@@ -599,10 +599,13 @@
         scales: {
           y: { display: false, beginAtZero: true },
           x: {
+            offset: false,
             ticks: {
               color: cssVar('--ink-secondary'),
               autoSkip: true,
               maxTicksLimit: compact ? Math.ceil(dates.length / 5) + 1 : dates.length,
+              maxRotation: 0,
+              minRotation: 0,
               font: { size: 11 },
             },
             grid: { color: cssVar('--rule'), drawTicks: false },
