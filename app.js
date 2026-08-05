@@ -463,44 +463,6 @@
     });
   }
 
-  // ---------- exploded-donut leader-line plugin ----------
-  const leaderLinePlugin = {
-    id: 'leaderLines',
-    afterDraw(chart) {
-      const meta = chart.getDatasetMeta(0);
-      if (!meta || !meta.data || !meta.data.length) return;
-      const dataset = chart.data.datasets[0];
-      const total = dataset.data.reduce((a, b) => a + b, 0);
-      if (!total) return;
-      const { ctx } = chart;
-      ctx.save();
-      ctx.font = '11px ' + (cssVar('--font-body') || 'sans-serif');
-      meta.data.forEach((arc, i) => {
-        const value = dataset.data[i];
-        if (!value) return;
-        const pct = Math.round((value / total) * 100);
-        const angle = (arc.startAngle + arc.endAngle) / 2;
-        const outerR = arc.outerRadius;
-        const cx = arc.x;
-        const cy = arc.y;
-        const x1 = cx + Math.cos(angle) * (outerR + 3);
-        const y1 = cy + Math.sin(angle) * (outerR + 3);
-        const x2 = cx + Math.cos(angle) * (outerR + 11);
-        const y2 = cy + Math.sin(angle) * (outerR + 11);
-        ctx.strokeStyle = cssVar('--ink-muted') || '#999';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.fillStyle = cssVar('--ink-secondary') || '#666';
-        ctx.textAlign = x2 >= cx ? 'left' : 'right';
-        ctx.fillText(`${chart.data.labels[i]} ${pct}%`, x2 + (x2 >= cx ? 3 : -3), y2 + 3);
-      });
-      ctx.restore();
-    },
-  };
-
   // ---------- rendering: charts ----------
   function categoryDailyTotal(dateStr, category) {
     return expenses
@@ -510,16 +472,27 @@
 
   const LINE_CATEGORY_COLORS = { Food: '#8b5cf6', Transport: '#bf819c', Lifestyle: '#f2a541' };
 
-  // Evenly-spaced purple->orange hex colors, n of them, for exploded-donut slices.
-  function purpleOrangeGradientColors(n) {
+  // Evenly-spaced purple shades (the accent purple, fading to a lighter tint),
+  // n of them, for exploded-donut slices on the Charts page.
+  function purpleShades(n) {
     const start = [139, 92, 246]; // #8b5cf6
-    const end = [242, 165, 65]; // #f2a541
+    const end = [196, 181, 253]; // #c4b5fd
     if (n <= 1) return ['#8b5cf6'];
     return Array.from({ length: n }, (_, i) => {
       const t = i / (n - 1);
       const rgb = start.map((s, j) => Math.round(s + (end[j] - s) * t));
       return `#${rgb.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
     });
+  }
+
+  // Rounded slices for exploded donuts, except a single 100% slice which should
+  // form one unbroken ring instead of showing a rounded seam where it meets itself.
+  function explodedSliceStyle(n) {
+    return { offset: Array(n).fill(10), borderRadius: n > 1 ? 8 : 0 };
+  }
+
+  function bottomLegend() {
+    return { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: cssVar('--ink-secondary') } };
   }
 
   // Draws the €-value of the dashed limit line next to its right-hand end,
@@ -648,24 +621,25 @@
     const categories = Object.keys(CATEGORIES).filter((c) => totalsByCategory[c] > 0);
     if (categories.length === 0) return null;
 
+    const style = explodedSliceStyle(categories.length);
     return {
       type: 'doughnut',
       data: {
         labels: categories.map((c) => CATEGORIES[c].label),
         datasets: [{
           data: categories.map((c) => totalsByCategory[c]),
-          backgroundColor: categories.map((c) => RING_COLORS[c]),
-          offset: categories.map(() => 10),
+          backgroundColor: purpleShades(categories.length),
+          offset: style.offset,
           borderWidth: 0,
-          borderRadius: 18,
+          borderRadius: style.borderRadius,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 30, bottom: 30, left: 70, right: 70 } },
+        layout: { padding: 8 },
         plugins: {
-          legend: { display: false },
+          legend: bottomLegend(),
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -673,7 +647,6 @@
           },
         },
       },
-      plugins: [leaderLinePlugin],
     };
   }
 
@@ -689,24 +662,25 @@
     const keys = Object.keys(subs).filter((s) => totals[s] > 0);
     if (keys.length === 0) return null;
 
+    const style = explodedSliceStyle(keys.length);
     return {
       type: 'doughnut',
       data: {
         labels: keys,
         datasets: [{
           data: keys.map((s) => totals[s]),
-          backgroundColor: purpleOrangeGradientColors(keys.length),
-          offset: keys.map(() => 10),
+          backgroundColor: purpleShades(keys.length),
+          offset: style.offset,
           borderWidth: 0,
-          borderRadius: 18,
+          borderRadius: style.borderRadius,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 30, bottom: 30, left: 70, right: 70 } },
+        layout: { padding: 8 },
         plugins: {
-          legend: { display: false },
+          legend: bottomLegend(),
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -714,7 +688,6 @@
           },
         },
       },
-      plugins: [leaderLinePlugin],
     };
   }
 
@@ -791,24 +764,25 @@
 
     const subCtx = document.getElementById('subscriptionsChart').getContext('2d');
     if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
+    const style = explodedSliceStyle(2);
     subscriptionsChart = new Chart(subCtx, {
       type: 'doughnut',
       data: {
         labels: ['Subscriptions', 'Other spending'],
         datasets: [{
           data: [subscriptionTotal, monthlyLoggedTotal],
-          backgroundColor: purpleOrangeGradientColors(2),
-          offset: [10, 10],
+          backgroundColor: purpleShades(2),
+          offset: style.offset,
           borderWidth: 0,
-          borderRadius: 18,
+          borderRadius: style.borderRadius,
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: { top: 30, bottom: 30, left: 70, right: 70 } },
+        layout: { padding: 8 },
         plugins: {
-          legend: { display: false },
+          legend: bottomLegend(),
           tooltip: {
             callbacks: {
               label: (ctx) => `${ctx.label}: ${formatEUR(ctx.parsed)}`,
@@ -816,7 +790,6 @@
           },
         },
       },
-      plugins: [leaderLinePlugin],
     });
   }
 
