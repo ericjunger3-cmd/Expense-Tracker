@@ -292,16 +292,12 @@
   const SCOPE_LABELS = { week: "This week's", month: "This month's", all: 'All-time' };
 
   function renderStats() {
-    let totals;
-    if (currentScope === 'all') {
-      const byDate = {};
-      expenses.forEach((e) => { byDate[e.date] = (byDate[e.date] || 0) + e.amount; });
-      totals = Object.values(byDate);
-    } else {
-      totals = scopeDates().map(toISODate).map(dailyTotal);
-    }
-    const total = totals.reduce((a, b) => a + b, 0);
-    const avg = totals.length ? total / totals.length : 0;
+    const dates = scopeDates();
+    const dateSet = dates ? new Set(dates.map(toISODate)) : null;
+    const relevant = expenses.filter((e) => !dateSet || dateSet.has(e.date));
+    const total = relevant.reduce((sum, e) => sum + e.amount, 0);
+    const activeDays = new Set(relevant.map((e) => e.date)).size;
+    const avg = activeDays ? total / activeDays : 0;
 
     const label = SCOPE_LABELS[currentScope];
     scopeAvgLabel.textContent = `${label} average / day`;
