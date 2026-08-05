@@ -589,7 +589,15 @@
         layout: { padding: { top: 14, right: 8, left: 4, bottom: 4 } },
         plugins: {
           legend: mode === 'byCategory'
-            ? { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 }, color: cssVar('--ink-secondary') } }
+            ? {
+              position: 'bottom',
+              labels: {
+                boxWidth: 10,
+                font: { size: 11 },
+                color: cssVar('--ink-secondary'),
+                filter: (item, data) => !data.datasets[item.datasetIndex].isLimitLine,
+              },
+            }
             : { display: false },
           tooltip: {
             callbacks: {
