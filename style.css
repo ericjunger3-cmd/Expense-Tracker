@@ -354,7 +354,7 @@ button.secondary:hover { color: var(--ink); filter: none; }
   color: var(--ink-muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  text-align: left;
 }
 
 .subscription-amount {
