@@ -567,17 +567,18 @@
         pointRadius: 0,
         fill: false,
       });
-      datasets.push({
-        label: `Daily limit (${formatEUR(dailyLimit)})`,
-        data: dates.map(() => dailyLimit),
-        borderColor: cssVar('--ink-muted'),
-        borderDash: [4, 4],
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        isLimitLine: true,
-      });
     }
+
+    datasets.push({
+      label: `Daily limit (${formatEUR(dailyLimit)})`,
+      data: dates.map(() => dailyLimit),
+      borderColor: cssVar('--ink-muted'),
+      borderDash: [4, 4],
+      borderWidth: 1,
+      pointRadius: 0,
+      fill: false,
+      isLimitLine: true,
+    });
 
     return {
       type: 'line',
@@ -612,7 +613,7 @@
           },
         },
       },
-      plugins: mode === 'total' ? [limitLineLabelPlugin] : [],
+      plugins: [limitLineLabelPlugin],
     };
   }
 
