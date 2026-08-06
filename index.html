@@ -6,7 +6,7 @@
 <title>Daily Expense Tracker</title>
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 </head>
 <body>
 
@@ -63,7 +63,18 @@
     </div>
 
     <section class="panel">
-      <h2 id="gaugeCardTitle">Today</h2>
+      <div class="period-nav" id="gaugePeriodNav">
+        <button type="button" class="period-nav-arrow" id="gaugePrevBtn" aria-label="Previous period">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="period-nav-label">
+          <div id="gaugePeriodLabel">Today</div>
+          <div class="period-nav-sub hidden" id="gaugePeriodSub">Current week</div>
+        </div>
+        <button type="button" class="period-nav-arrow" id="gaugeNextBtn" aria-label="Next period">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
       <div class="gauge-wrap">
         <canvas id="budgetGauge"></canvas>
         <div class="gauge-center">
@@ -100,13 +111,6 @@
         <canvas id="currentWeekChart"></canvas>
       </div>
       <div class="category-legend hidden" id="mainChartLegend"></div>
-    </section>
-
-    <section class="panel" id="previousWeekCard">
-      <h2>Previous Week</h2>
-      <div class="chart-container small-chart">
-        <canvas id="previousWeekChart"></canvas>
-      </div>
     </section>
 
   </section>
@@ -256,6 +260,6 @@
 </div>
 
 <script src="lib/chart.umd.min.js"></script>
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

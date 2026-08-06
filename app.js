@@ -73,10 +73,11 @@
   let currentScope = 'week';
   let chartMode = 'total';
   let categoryVisibility = { Food: true, Transport: true, Lifestyle: true };
+  let weekOffset = 0; // 0 = current week, 1 = one week back, etc.
+  let monthOffset = 0; // 0 = current month, 1 = one month back, etc.
   let currentPage = 'home';
   let editingId = null;
   let currentWeekChart = null;
-  let previousWeekChart = null;
   let categoryChart = null;
   let subcategoryChart = null;
   let subscriptionsChart = null;
@@ -100,9 +101,13 @@
   const scopeTotalEl = document.getElementById('scopeTotal');
   const scopeTotalLabel = document.getElementById('scopeTotalLabel');
   const mainChartTitle = document.getElementById('mainChartTitle');
-  const previousWeekCard = document.getElementById('previousWeekCard');
   const mainChartCard = document.getElementById('mainChartCard');
   const mainChartLegend = document.getElementById('mainChartLegend');
+  const gaugePeriodNav = document.getElementById('gaugePeriodNav');
+  const gaugePrevBtn = document.getElementById('gaugePrevBtn');
+  const gaugeNextBtn = document.getElementById('gaugeNextBtn');
+  const gaugePeriodLabel = document.getElementById('gaugePeriodLabel');
+  const gaugePeriodSub = document.getElementById('gaugePeriodSub');
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
@@ -218,19 +223,41 @@
     return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   }
 
-  function currentMonthDates() {
+  // offset counts periods back from the current one (0 = current, 1 = previous, ...).
+  function mondayForWeekOffset(offset) {
+    return addDays(startOfWeek(new Date()), -offset * 7);
+  }
+
+  function monthDatesForOffset(offset) {
     const now = new Date();
     const year = now.getFullYear();
-    const month = now.getMonth();
+    const month = now.getMonth() - offset; // Date normalizes negative months across years
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     return Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1));
+  }
+
+  // Compact "3–9 Aug" (same month) or "28 Jul – 3 Aug" (spans months) label.
+  function weekRangeLabel(offset) {
+    const monday = mondayForWeekOffset(offset);
+    const sunday = addDays(monday, 6);
+    const monthFmt = (d) => d.toLocaleDateString('en-GB', { month: 'short' });
+    if (monday.getMonth() === sunday.getMonth()) {
+      return `${monday.getDate()}–${sunday.getDate()} ${monthFmt(sunday)}`;
+    }
+    return `${monday.getDate()} ${monthFmt(monday)} – ${sunday.getDate()} ${monthFmt(sunday)}`;
+  }
+
+  function monthRangeLabel(offset) {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   }
 
   // Returns an array of Date objects for week/month scope, or null for "all time"
   // (unbounded — callers that need a Set for filtering treat null as "no filter").
   function scopeDates() {
-    if (currentScope === 'week') return weekDates(startOfWeek(new Date()));
-    if (currentScope === 'month') return currentMonthDates();
+    if (currentScope === 'week') return weekDates(mondayForWeekOffset(weekOffset));
+    if (currentScope === 'month') return monthDatesForOffset(monthOffset);
     return null;
   }
 
@@ -325,7 +352,10 @@
     const activeDays = new Set(relevant.map((e) => e.date)).size;
     const avg = activeDays ? total / activeDays : 0;
 
-    const label = SCOPE_LABELS[currentScope];
+    const offset = currentScope === 'week' ? weekOffset : currentScope === 'month' ? monthOffset : 0;
+    const label = offset === 0
+      ? SCOPE_LABELS[currentScope]
+      : (currentScope === 'week' ? "Selected week's" : "Selected month's");
     scopeAvgLabel.textContent = `${label} average / day`;
     scopeTotalLabel.textContent = `${label} total`;
     scopeAvgEl.textContent = formatEUR(avg);
@@ -344,24 +374,36 @@
     return "Well, today's budget left the chat entirely.";
   }
 
-  // What the "Today" gauge card shows for the active scope tab. Week keeps the
-  // literal daily snapshot; Month/Total scale (or drop) the limit accordingly.
+  // What the gauge/rings show for the active scope tab. Week keeps the literal
+  // "Today" daily snapshot only while viewing the current week — browse to a
+  // past week and it switches to that week's total instead, since there's no
+  // "today" inside a week that's already over. Month already shows a period
+  // total (month-to-date for the current month, the full month for past ones),
+  // so browsing months needs no special-casing beyond the date range itself.
   function gaugePeriodContext() {
     if (currentScope === 'week') {
-      const todayStr = toISODate(new Date());
+      if (weekOffset === 0) {
+        const todayStr = toISODate(new Date());
+        return {
+          spent: dailyTotal(todayStr),
+          limit: dailyLimit,
+          limitLabel: 'daily limit',
+          dateSet: new Set([todayStr]),
+        };
+      }
+      const dateSet = new Set(weekDates(mondayForWeekOffset(weekOffset)).map(toISODate));
+      const spent = expenses.filter((e) => dateSet.has(e.date)).reduce((sum, e) => sum + e.amount, 0);
       return {
-        title: 'Today',
-        spent: dailyTotal(todayStr),
-        limit: dailyLimit,
-        limitLabel: 'daily limit',
-        dateSet: new Set([todayStr]),
+        spent,
+        limit: dailyLimit * 7,
+        limitLabel: 'weekly limit',
+        dateSet,
       };
     }
     if (currentScope === 'month') {
-      const dateSet = new Set(currentMonthDates().map(toISODate));
+      const dateSet = new Set(monthDatesForOffset(monthOffset).map(toISODate));
       const spent = expenses.filter((e) => dateSet.has(e.date)).reduce((sum, e) => sum + e.amount, 0);
       return {
-        title: 'This Month',
         spent,
         limit: dailyLimit * 30,
         limitLabel: 'monthly limit',
@@ -369,7 +411,6 @@
       };
     }
     return {
-      title: 'All Time',
       spent: expenses.reduce((sum, e) => sum + e.amount, 0),
       limit: null,
       limitLabel: null,
@@ -377,14 +418,44 @@
     };
   }
 
+  function renderGaugePeriodNav() {
+    if (currentScope === 'all') {
+      gaugePrevBtn.classList.add('hidden');
+      gaugeNextBtn.classList.add('hidden');
+      gaugePeriodLabel.textContent = 'All Time';
+      gaugePeriodSub.classList.add('hidden');
+      return;
+    }
+    gaugePrevBtn.classList.remove('hidden');
+    gaugeNextBtn.classList.remove('hidden');
+    const offset = currentScope === 'week' ? weekOffset : monthOffset;
+    gaugePeriodLabel.textContent = currentScope === 'week' ? weekRangeLabel(offset) : monthRangeLabel(offset);
+    gaugePeriodSub.textContent = currentScope === 'week' ? 'Current week' : 'Current month';
+    gaugePeriodSub.classList.toggle('hidden', offset !== 0);
+    gaugeNextBtn.disabled = offset === 0;
+  }
+
+  gaugePrevBtn.addEventListener('click', () => {
+    if (currentScope === 'week') weekOffset += 1;
+    else if (currentScope === 'month') monthOffset += 1;
+    renderAll();
+  });
+
+  gaugeNextBtn.addEventListener('click', () => {
+    if (currentScope === 'week' && weekOffset > 0) weekOffset -= 1;
+    else if (currentScope === 'month' && monthOffset > 0) monthOffset -= 1;
+    renderAll();
+  });
+
   function renderGauge() {
     const todayStr = toISODate(new Date());
     const spentToday = dailyTotal(todayStr);
     const todayPct = dailyLimit > 0 ? Math.round((spentToday / dailyLimit) * 100) : 0;
     headerMood.textContent = moodSentence(todayPct);
 
-    const { title, spent, limit, limitLabel } = gaugePeriodContext();
-    document.getElementById('gaugeCardTitle').textContent = title;
+    renderGaugePeriodNav();
+
+    const { spent, limit, limitLabel } = gaugePeriodContext();
     document.getElementById('gaugeSpentToday').textContent = formatEUR(spent);
     const pctEl = document.getElementById('gaugePct');
 
@@ -874,26 +945,16 @@
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
 
     if (currentWeekChart) { currentWeekChart.destroy(); currentWeekChart = null; }
-    if (previousWeekChart) { previousWeekChart.destroy(); previousWeekChart = null; }
     if (categoryChart) { categoryChart.destroy(); categoryChart = null; }
 
     if (currentScope === 'all') {
       mainChartCard.classList.add('hidden');
-      previousWeekCard.classList.add('hidden');
     } else {
       mainChartCard.classList.remove('hidden');
+      mainChartTitle.textContent = currentScope === 'week' ? weekRangeLabel(weekOffset) : monthRangeLabel(monthOffset);
       const currentCtx = document.getElementById('currentWeekChart').getContext('2d');
       currentWeekChart = new Chart(currentCtx, buildLineChartConfig(dates, chartMode, currentCtx));
       renderCategoryLegend();
-
-      if (currentScope === 'week') {
-        previousWeekCard.classList.remove('hidden');
-        const monday = startOfWeek(new Date());
-        const previousCtx = document.getElementById('previousWeekChart').getContext('2d');
-        previousWeekChart = new Chart(previousCtx, buildLineChartConfig(weekDates(addDays(monday, -7)), 'total', previousCtx));
-      } else {
-        previousWeekCard.classList.add('hidden');
-      }
     }
 
     const categoryResult = buildCategoryChartConfig(dateSet);
@@ -1073,18 +1134,15 @@
   }
 
   // ---------- scope tabs (Week/Month/Total) ----------
-  function currentMonthLabel() {
-    return new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-  }
-
   function setScope(scope) {
     currentScope = scope;
+    weekOffset = 0;
+    monthOffset = 0;
     document.querySelectorAll('.scope-tab').forEach((btn) => {
       const active = btn.dataset.scope === scope;
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-selected', String(active));
     });
-    mainChartTitle.textContent = scope === 'week' ? 'This Week (Mon–Sun)' : scope === 'month' ? currentMonthLabel() : 'All Time';
     renderAll();
   }
 
