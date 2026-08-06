@@ -6,7 +6,7 @@
 <title>Daily Expense Tracker</title>
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
@@ -144,12 +144,21 @@
 
     <section class="panel" id="subscriptionsCard">
       <h2>Subscriptions</h2>
-      <div class="chart-container category-chart">
-        <canvas id="subscriptionsChart"></canvas>
+      <div class="form-row">
+        <label for="subscriptionsViewSelect">View</label>
+        <select id="subscriptionsViewSelect">
+          <option value="chart">Chart</option>
+          <option value="list">List</option>
+        </select>
       </div>
-      <div class="rings-row" id="subscriptionsLegend"></div>
       <p class="stat-label" id="subscriptionsStat"></p>
-      <ul class="subscription-list" id="subscriptionsList"></ul>
+      <div id="subscriptionsChartView">
+        <div class="chart-container category-chart">
+          <canvas id="subscriptionsChart"></canvas>
+        </div>
+        <div class="rings-row" id="subscriptionsLegend"></div>
+      </div>
+      <ul class="subscription-list hidden" id="subscriptionsList"></ul>
     </section>
   </section>
 
@@ -246,6 +255,6 @@
 </div>
 
 <script src="lib/chart.umd.min.js"></script>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>

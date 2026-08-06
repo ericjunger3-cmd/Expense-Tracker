@@ -26,11 +26,12 @@
     Shopping: { category: 'Lifestyle', subcategory: 'Else' },
     Other: { category: 'Lifestyle', subcategory: 'Else' },
   };
-  const SUBSCRIPTIONS = [
-    { name: 'Claude', amount: 22.17, day: 20 },
-    { name: 'Spotify', amount: 13.99, day: 30 },
-    { name: 'DAZN', amount: 44.99, day: 26 },
-    { name: 'Viva Gym', amount: 33.90, day: 8 },
+  const SUBSCRIPTIONS_KEY = 'subscriptionsData';
+  const DEFAULT_SUBSCRIPTIONS = [
+    { id: 'default-claude', name: 'Claude', amount: 22.17, day: 20 },
+    { id: 'default-spotify', name: 'Spotify', amount: 13.99, day: 30 },
+    { id: 'default-dazn', name: 'DAZN', amount: 44.99, day: 26 },
+    { id: 'default-vivagym', name: 'Viva Gym', amount: 33.90, day: 8 },
   ];
 
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -66,6 +67,9 @@
     if (changed) saveExpenses();
   }
   let dailyLimit = loadDailyLimit();
+  let subscriptions = loadSubscriptions();
+  let subscriptionsView = 'chart';
+  let addingSubscription = false;
   let currentScope = 'week';
   let chartMode = 'total';
   let currentPage = 'home';
@@ -109,6 +113,8 @@
   const subcategoryEmptyState = document.getElementById('subcategoryEmptyState');
   const subscriptionsStat = document.getElementById('subscriptionsStat');
   const subscriptionsList = document.getElementById('subscriptionsList');
+  const subscriptionsViewSelect = document.getElementById('subscriptionsViewSelect');
+  const subscriptionsChartView = document.getElementById('subscriptionsChartView');
   const themeToggle = document.getElementById('themeToggle');
   const appNav = document.getElementById('appNav');
 
@@ -162,6 +168,21 @@
 
   function saveDailyLimit() {
     localStorage.setItem(LIMIT_STORAGE_KEY, String(dailyLimit));
+  }
+
+  function loadSubscriptions() {
+    try {
+      const raw = localStorage.getItem(SUBSCRIPTIONS_KEY);
+      if (!raw) return DEFAULT_SUBSCRIPTIONS.map((s) => ({ ...s }));
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : DEFAULT_SUBSCRIPTIONS.map((s) => ({ ...s }));
+    } catch {
+      return DEFAULT_SUBSCRIPTIONS.map((s) => ({ ...s }));
+    }
+  }
+
+  function saveSubscriptions() {
+    localStorage.setItem(SUBSCRIPTIONS_KEY, JSON.stringify(subscriptions));
   }
 
   function uid() {
@@ -882,10 +903,76 @@
   }
 
   // ---------- rendering: subscriptions ----------
+  function renderSubscriptionsList() {
+    const rowsHtml = subscriptions.map((s) => `
+      <li class="subscription-item" data-id="${s.id}">
+        <span class="subscription-name">${escapeHtml(s.name)}</span>
+        <span class="subscription-day">day ${s.day}</span>
+        <span class="subscription-amount">${formatEUR(s.amount)}</span>
+        <button type="button" class="subscription-delete-btn" data-id="${s.id}" aria-label="Delete ${escapeHtml(s.name)}">&times;</button>
+      </li>`).join('');
+
+    const addRowHtml = addingSubscription
+      ? `<li class="subscription-add-form">
+          <input type="text" id="newSubName" placeholder="Name" maxlength="40">
+          <input type="number" id="newSubDay" class="subscription-add-day" placeholder="Day" min="1" max="31" step="1">
+          <input type="number" id="newSubAmount" class="subscription-add-amount" placeholder="€" min="0.01" step="0.01">
+          <div class="subscription-add-actions">
+            <button type="button" class="secondary" id="cancelAddSubBtn">Cancel</button>
+            <button type="button" id="saveAddSubBtn">Save</button>
+          </div>
+        </li>`
+      : `<li><button type="button" class="subscription-add-btn" id="showAddSubBtn">+ Add subscription</button></li>`;
+
+    subscriptionsList.innerHTML = rowsHtml + addRowHtml;
+  }
+
+  function deleteSubscription(id) {
+    if (!confirm('Delete this subscription?')) return;
+    subscriptions = subscriptions.filter((s) => s.id !== id);
+    saveSubscriptions();
+    renderSubscriptions();
+  }
+
+  function saveNewSubscription() {
+    const name = document.getElementById('newSubName').value.trim();
+    const day = parseInt(document.getElementById('newSubDay').value, 10);
+    const amount = parseFloat(document.getElementById('newSubAmount').value);
+    if (!name || !Number.isInteger(day) || day < 1 || day > 31 || !Number.isFinite(amount) || amount <= 0) {
+      alert('Please fill in a name, a day between 1 and 31, and an amount greater than 0.');
+      return;
+    }
+    subscriptions.push({ id: uid(), name, day, amount });
+    saveSubscriptions();
+    addingSubscription = false;
+    renderSubscriptions();
+  }
+
+  subscriptionsList.addEventListener('click', (e) => {
+    const delBtn = e.target.closest('.subscription-delete-btn');
+    if (delBtn) { deleteSubscription(delBtn.dataset.id); return; }
+    if (e.target.id === 'showAddSubBtn') { addingSubscription = true; renderSubscriptionsList(); return; }
+    if (e.target.id === 'cancelAddSubBtn') { addingSubscription = false; renderSubscriptionsList(); return; }
+    if (e.target.id === 'saveAddSubBtn') saveNewSubscription();
+  });
+
+  function applySubscriptionsView() {
+    subscriptionsChartView.classList.toggle('hidden', subscriptionsView !== 'chart');
+    subscriptionsList.classList.toggle('hidden', subscriptionsView !== 'list');
+  }
+
+  subscriptionsViewSelect.addEventListener('change', () => {
+    subscriptionsView = subscriptionsViewSelect.value;
+    // Charts built while hidden get a zero-size canvas and never recover —
+    // rebuild whenever the chart view becomes visible again.
+    if (subscriptionsView === 'chart') renderSubscriptions();
+    else applySubscriptionsView();
+  });
+
   function renderSubscriptions() {
     const now = new Date();
     const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const subscriptionTotal = SUBSCRIPTIONS.reduce((sum, s) => sum + s.amount, 0);
+    const subscriptionTotal = subscriptions.reduce((sum, s) => sum + s.amount, 0);
     const monthlyLoggedTotal = expenses
       .filter((e) => e.date.startsWith(currentYearMonth))
       .reduce((sum, e) => sum + e.amount, 0);
@@ -894,15 +981,16 @@
 
     subscriptionsStat.textContent = `${formatEUR(subscriptionTotal)}/mo · ${pct.toFixed(0)}% of this month's spending`;
 
-    subscriptionsList.innerHTML = SUBSCRIPTIONS.map((s) => `
-      <li class="subscription-item">
-        <span class="subscription-name">${escapeHtml(s.name)}</span>
-        <span class="subscription-day">day ${s.day}</span>
-        <span class="subscription-amount">${formatEUR(s.amount)}</span>
-      </li>`).join('');
+    applySubscriptionsView();
+    renderSubscriptionsList();
+
+    if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
+    if (subscriptionsView !== 'chart') {
+      renderRingLegend('subscriptionsLegend', []);
+      return;
+    }
 
     const subCtx = document.getElementById('subscriptionsChart').getContext('2d');
-    if (subscriptionsChart) { subscriptionsChart.destroy(); subscriptionsChart = null; }
     // Other spending covers everything logged in the tracker, so it gets the
     // full purple->orange fade from the Home gauge. Subscriptions gets its own
     // dark->light red fade, kept fully separate (not starting from orange) so
