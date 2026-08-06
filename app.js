@@ -834,6 +834,15 @@
   // Chart.js's built-in legend so each category gets a clickable colored dot
   // (a lighter tint of its own color when deselected, not a generic grey) that
   // toggles that category's line independently of the others.
+  // White line-icon per category (same stroke style as the sidebar nav icons),
+  // shown inside each legend dot: fork & knife for Food, a car for Transport,
+  // a ticket for Lifestyle.
+  const CATEGORY_ICON_PATHS = {
+    Food: '<path d="M4 3v6a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V3"/><path d="M6 3v18"/><path d="M15 3c-1.5 0-3 1.8-3 5s1.5 5 3 5 3-1.8 3-5-1.5-5-3-5z"/><path d="M15 3v18"/>',
+    Transport: '<path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11"/><rect x="3" y="11" width="18" height="6" rx="2"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/>',
+    Lifestyle: '<path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8z"/><path d="M13 5v2M13 11v2M13 17v2"/>',
+  };
+
   function renderCategoryLegend() {
     if (chartMode !== 'byCategory') { mainChartLegend.classList.add('hidden'); return; }
     mainChartLegend.classList.remove('hidden');
@@ -842,7 +851,9 @@
       const dotColor = active ? LINE_CATEGORY_COLORS[c] : toHex(lighten(hexToRgb(LINE_CATEGORY_COLORS[c]), 0.6));
       return `
         <button type="button" class="category-legend-item ${active ? '' : 'inactive'}" data-category="${c}">
-          <span class="category-legend-dot" style="background:${dotColor}"></span>
+          <span class="category-legend-dot" style="background:${dotColor}">
+            <svg class="category-legend-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${CATEGORY_ICON_PATHS[c]}</svg>
+          </span>
           <span class="category-legend-label">${CATEGORIES[c].label}</span>
         </button>`;
     }).join('');
