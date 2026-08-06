@@ -72,6 +72,7 @@
   let addingSubscription = false;
   let currentScope = 'week';
   let chartMode = 'total';
+  let categoryVisibility = { Food: true, Transport: true, Lifestyle: true };
   let currentPage = 'home';
   let editingId = null;
   let currentWeekChart = null;
@@ -101,6 +102,7 @@
   const mainChartTitle = document.getElementById('mainChartTitle');
   const previousWeekCard = document.getElementById('previousWeekCard');
   const mainChartCard = document.getElementById('mainChartCard');
+  const mainChartLegend = document.getElementById('mainChartLegend');
   const exportBtn = document.getElementById('exportBtn');
   const importInput = document.getElementById('importInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
@@ -627,6 +629,7 @@
           tension: 0.4,
           pointRadius: 0,
           fill: false,
+          hidden: !categoryVisibility[c],
         });
       });
     } else {
@@ -664,17 +667,7 @@
         maintainAspectRatio: false,
         layout: { padding: { top: 14, right: 8, left: 4, bottom: 4 } },
         plugins: {
-          legend: mode === 'byCategory'
-            ? {
-              position: 'bottom',
-              labels: {
-                boxWidth: 10,
-                font: { size: 11 },
-                color: cssVar('--ink-secondary'),
-                filter: (item, data) => !data.datasets[item.datasetIndex].isLimitLine,
-              },
-            }
-            : { display: false },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (c) => `${c.dataset.label}: ${formatEUR(c.parsed.y)}`,
@@ -837,6 +830,32 @@
     };
   }
 
+  // Custom round-dot legend for the Home "By Category" line chart, replacing
+  // Chart.js's built-in legend so each category gets a clickable colored dot
+  // (a lighter tint of its own color when deselected, not a generic grey) that
+  // toggles that category's line independently of the others.
+  function renderCategoryLegend() {
+    if (chartMode !== 'byCategory') { mainChartLegend.classList.add('hidden'); return; }
+    mainChartLegend.classList.remove('hidden');
+    mainChartLegend.innerHTML = Object.keys(CATEGORIES).map((c) => {
+      const active = categoryVisibility[c];
+      const dotColor = active ? LINE_CATEGORY_COLORS[c] : toHex(lighten(hexToRgb(LINE_CATEGORY_COLORS[c]), 0.6));
+      return `
+        <button type="button" class="category-legend-item ${active ? '' : 'inactive'}" data-category="${c}">
+          <span class="category-legend-dot" style="background:${dotColor}"></span>
+          <span class="category-legend-label">${CATEGORIES[c].label}</span>
+        </button>`;
+    }).join('');
+  }
+
+  mainChartLegend.addEventListener('click', (e) => {
+    const btn = e.target.closest('.category-legend-item');
+    if (!btn) return;
+    const c = btn.dataset.category;
+    categoryVisibility[c] = !categoryVisibility[c];
+    renderCharts();
+  });
+
   function renderCharts() {
     const dates = scopeDates(); // Date[] for week/month, null for all
     const dateSet = dates ? new Set(dates.map(toISODate)) : null;
@@ -854,6 +873,7 @@
       mainChartCard.classList.remove('hidden');
       const currentCtx = document.getElementById('currentWeekChart').getContext('2d');
       currentWeekChart = new Chart(currentCtx, buildLineChartConfig(dates, chartMode, currentCtx));
+      renderCategoryLegend();
 
       if (currentScope === 'week') {
         previousWeekCard.classList.remove('hidden');
