@@ -423,7 +423,7 @@
       gaugePrevBtn.classList.add('hidden');
       gaugeNextBtn.classList.add('hidden');
       gaugePeriodLabel.textContent = 'All Time';
-      gaugePeriodSub.classList.add('hidden');
+      gaugePeriodSub.classList.remove('is-current');
       return;
     }
     gaugePrevBtn.classList.remove('hidden');
@@ -431,7 +431,7 @@
     const offset = currentScope === 'week' ? weekOffset : monthOffset;
     gaugePeriodLabel.textContent = currentScope === 'week' ? weekRangeLabel(offset) : monthRangeLabel(offset);
     gaugePeriodSub.textContent = currentScope === 'week' ? 'Current week' : 'Current month';
-    gaugePeriodSub.classList.toggle('hidden', offset !== 0);
+    gaugePeriodSub.classList.toggle('is-current', offset === 0);
     gaugeNextBtn.disabled = offset === 0;
   }
 
