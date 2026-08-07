@@ -407,7 +407,11 @@ button.danger:hover { filter: none; opacity: 0.75; }
   position: fixed;
   left: 50%;
   bottom: 18px;
-  transform: translateX(-50%);
+  /* --keyboard-inset is kept in sync with the on-screen keyboard by a
+     visualViewport listener in app.js, so the pill tracks the *visible*
+     bottom edge instead of getting misplaced by iOS Safari's fixed-position
+     handling whenever any input on the page gets focused. */
+  transform: translateX(-50%) translateY(calc(-1 * var(--keyboard-inset, 0px)));
   display: flex;
   align-items: center;
   gap: 4px;

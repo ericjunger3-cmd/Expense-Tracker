@@ -1600,6 +1600,25 @@
     if (s.gistId && s.token) runSync();
   })();
 
+  // ---------- keyboard-aware bottom nav ----------
+  // Whenever any input on the page is focused, iOS Safari can misposition
+  // position:fixed elements relative to the keyboard-shrunk visual viewport
+  // (the .app-nav pill visibly jumps/floats). Tracking the actual visible
+  // viewport via this API and feeding it back in as --keyboard-inset (used
+  // by .app-nav's transform in style.css) keeps the pill pinned to the real
+  // visible bottom edge instead, for every input in the app — not just the
+  // add-expense sheet's fields.
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    const updateKeyboardInset = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--keyboard-inset', `${inset}px`);
+    };
+    vv.addEventListener('resize', updateKeyboardInset);
+    vv.addEventListener('scroll', updateKeyboardInset);
+    updateKeyboardInset();
+  }
+
   // ---------- init ----------
   renderSubcategoryGrid();
   populateSubcategoryChartSelect();
