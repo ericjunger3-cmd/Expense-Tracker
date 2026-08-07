@@ -1241,7 +1241,26 @@
 
   amountInput.addEventListener('input', resizeAmountInput);
 
+  // Pins the background page in place (rather than just overflow:hidden,
+  // which iOS Safari ignores for touch/rubber-band scrolling) so it can't
+  // scroll — and so position:fixed elements like the bottom nav don't jump
+  // around when the on-screen keyboard opens/closes — while the sheet is open.
+  let scrollLockY = 0;
+
+  function lockBodyScroll() {
+    scrollLockY = window.scrollY;
+    document.body.style.top = `-${scrollLockY}px`;
+    document.body.classList.add('scroll-locked');
+  }
+
+  function unlockBodyScroll() {
+    document.body.classList.remove('scroll-locked');
+    document.body.style.top = '';
+    window.scrollTo(0, scrollLockY);
+  }
+
   function openAddSheet() {
+    lockBodyScroll();
     addSheetBackdrop.classList.remove('hidden');
     addSheet.classList.remove('hidden');
     void addSheet.offsetHeight; // force layout so the slide-up transition runs
@@ -1257,6 +1276,7 @@
       addSheetBackdrop.classList.add('hidden');
       addSheet.classList.add('hidden');
       resetForm();
+      unlockBodyScroll();
     }, 300);
   }
 

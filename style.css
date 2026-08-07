@@ -102,6 +102,10 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; touch-action: manipulation; }
+/* Locks the background in place (incl. iOS Safari, where plain
+   overflow:hidden alone doesn't stop rubber-band scrolling) while the
+   add-expense sheet is open — see lockBodyScroll()/unlockBodyScroll(). */
+body.scroll-locked { position: fixed; left: 0; right: 0; width: 100%; overflow: hidden; }
 body {
   background: var(--page);
   color: var(--ink);
