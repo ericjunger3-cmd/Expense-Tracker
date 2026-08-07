@@ -1271,10 +1271,7 @@
 
   function closeAddSheet() {
     // Dismiss the keyboard immediately (rather than letting it happen
-    // whenever the browser gets around to it) so it isn't still animating
-    // closed at the same time as unlockBodyScroll() below — the two
-    // fighting over the viewport is what made the bottom nav jump again
-    // right after confirming an entry.
+    // whenever the browser gets around to it), since it needs a head start.
     if (document.activeElement && addSheet.contains(document.activeElement)) {
       document.activeElement.blur();
     }
@@ -1284,8 +1281,14 @@
       addSheetBackdrop.classList.add('hidden');
       addSheet.classList.add('hidden');
       resetForm();
-      unlockBodyScroll();
     }, 300);
+    // unlockBodyScroll() runs separately, later than the sheet's own 300ms
+    // close animation: the sheet's close animation and iOS's keyboard-dismiss
+    // animation both take ~300ms and were finishing at roughly the same
+    // moment, so restoring scroll right then still collided with the
+    // keyboard's own viewport adjustment and made the bottom nav jump again.
+    // Waiting past both first removes that overlap.
+    setTimeout(unlockBodyScroll, 500);
   }
 
   addSheetBackdrop.addEventListener('click', closeAddSheet);
