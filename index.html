@@ -6,7 +6,7 @@
 <title>Daily Expense Tracker</title>
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 
@@ -236,6 +236,7 @@
         <div class="amount-hero-input-wrap">
           <span class="amount-hero-currency">€</span>
           <input type="number" id="amount" step="0.01" min="0.01" required placeholder="0.00" inputmode="decimal">
+          <span class="amount-hero-measure" id="amountMeasure" aria-hidden="true"></span>
         </div>
         <input type="date" id="date" class="amount-hero-date" required>
       </div>
@@ -253,6 +254,6 @@
 </div>
 
 <script src="lib/chart.umd.min.js"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>

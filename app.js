@@ -94,6 +94,7 @@
   const subcategoryGrid = document.getElementById('subcategoryGrid');
   const descriptionInput = document.getElementById('description');
   const amountInput = document.getElementById('amount');
+  const amountMeasure = document.getElementById('amountMeasure');
   const submitBtn = document.getElementById('submitBtn');
   const cancelEditBtn = document.getElementById('cancelEditBtn');
   const entriesList = document.getElementById('entriesList');
@@ -1230,12 +1231,23 @@
   });
 
   // ---------- add-expense bottom sheet ----------
+  // Sizes the amount input to match its own text (value, or placeholder when
+  // empty) so the €+amount cluster stays centered as a unit instead of
+  // leaving empty space to the right of short numbers.
+  function resizeAmountInput() {
+    amountMeasure.textContent = amountInput.value || amountInput.placeholder || '0';
+    amountInput.style.width = `${amountMeasure.offsetWidth + 10}px`;
+  }
+
+  amountInput.addEventListener('input', resizeAmountInput);
+
   function openAddSheet() {
     addSheetBackdrop.classList.remove('hidden');
     addSheet.classList.remove('hidden');
     void addSheet.offsetHeight; // force layout so the slide-up transition runs
     addSheetBackdrop.classList.add('open');
     addSheet.classList.add('open');
+    resizeAmountInput();
   }
 
   function closeAddSheet() {

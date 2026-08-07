@@ -516,11 +516,19 @@ button.danger:hover { filter: none; opacity: 0.75; }
 .amount-hero-input-wrap input[type="number"] {
   font-family: var(--font-round); font-size: 2.6rem; font-weight: 700; color: var(--ink);
   background: transparent; border: none; padding: 0; min-height: unset;
-  width: 170px; text-align: left; -moz-appearance: textfield;
+  text-align: left; -moz-appearance: textfield;
+  /* Width is set in JS to match the typed value's own rendered width (see
+     resizeAmountInput), so the €+amount cluster stays centered as a unit
+     instead of leaving empty space to the right of short numbers. */
+  width: 80px;
 }
 .amount-hero-input-wrap input[type="number"]:focus { outline: none; }
 .amount-hero-input-wrap input[type="number"]::-webkit-outer-spin-button,
 .amount-hero-input-wrap input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.amount-hero-measure {
+  position: absolute; visibility: hidden; white-space: pre; left: -9999px; top: 0;
+  font-family: var(--font-round); font-size: 2.6rem; font-weight: 700;
+}
 .amount-hero-date {
   border: none; background: transparent; color: var(--ink-muted);
   font-family: var(--font-body); font-size: 12px; font-weight: 600;
