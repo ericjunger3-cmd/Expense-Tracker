@@ -1199,7 +1199,6 @@
     void addSheet.offsetHeight; // force layout so the slide-up transition runs
     addSheetBackdrop.classList.add('open');
     addSheet.classList.add('open');
-    amountInput.focus();
   }
 
   function closeAddSheet() {
