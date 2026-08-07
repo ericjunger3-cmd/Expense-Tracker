@@ -1282,6 +1282,16 @@
 
   addSheetBackdrop.addEventListener('click', closeAddSheet);
 
+  // Belt-and-suspenders against iOS Safari still rubber-band-scrolling the
+  // background through the backdrop/handle despite body being pinned: block
+  // touchmove there outright. The form's own scrollable area (.bottom-sheet-
+  // content) is left alone so it can still scroll internally if it overflows.
+  const sheetContent = document.querySelector('.bottom-sheet-content');
+  addSheetBackdrop.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  addSheet.addEventListener('touchmove', (e) => {
+    if (!sheetContent.contains(e.target)) e.preventDefault();
+  }, { passive: false });
+
   // Drag-to-dismiss: only the handle bar is a drag target, so it doesn't
   // interfere with normal taps/typing inside the form below it.
   let sheetDragStartY = null;
