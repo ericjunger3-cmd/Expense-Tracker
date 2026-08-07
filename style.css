@@ -505,9 +505,43 @@ button.danger:hover { filter: none; opacity: 0.75; }
   padding: 0 20px 20px;
 }
 .bottom-sheet-content h2 {
-  font-family: var(--font-round); font-size: 15px; font-weight: 700;
-  letter-spacing: -0.01em; margin: 0 0 14px; color: var(--ink);
+  font-family: var(--font-round); font-size: 13px; font-weight: 700;
+  letter-spacing: -0.01em; margin: 0 0 4px; color: var(--ink-muted);
+  text-align: center; text-transform: uppercase;
 }
+
+.amount-hero { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-bottom: 18px; }
+.amount-hero-input-wrap { display: flex; align-items: baseline; gap: 2px; }
+.amount-hero-currency { font-family: var(--font-round); font-size: 2rem; font-weight: 700; color: var(--ink); }
+.amount-hero-input-wrap input[type="number"] {
+  font-family: var(--font-round); font-size: 2.6rem; font-weight: 700; color: var(--ink);
+  background: transparent; border: none; padding: 0; min-height: unset;
+  width: 170px; text-align: left; -moz-appearance: textfield;
+}
+.amount-hero-input-wrap input[type="number"]:focus { outline: none; }
+.amount-hero-input-wrap input[type="number"]::-webkit-outer-spin-button,
+.amount-hero-input-wrap input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.amount-hero-date {
+  border: none; background: transparent; color: var(--ink-muted);
+  font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  padding: 2px 4px; min-height: unset; text-align: center;
+}
+
+.subcategory-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 12px; margin: 0 0 18px; }
+.subcategory-item {
+  appearance: none; border: none; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 2px; min-height: unset; width: 58px;
+}
+.subcategory-dot {
+  width: 32px; height: 32px; flex: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+.subcategory-icon { width: 18px; height: 18px; }
+.subcategory-label { font-size: 10.5px; font-weight: 600; color: var(--ink-secondary); text-align: center; line-height: 1.15; }
+.subcategory-item.selected .subcategory-dot { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); transform: scale(1.08); }
+.subcategory-item.selected .subcategory-label { color: var(--ink); }
 
 @media (max-width: 480px) {
   .wrap { padding: 20px 16px 130px; }

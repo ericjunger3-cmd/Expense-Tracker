@@ -77,6 +77,8 @@
   let monthOffset = 0; // 0 = current month, 1 = one month back, etc.
   let currentPage = 'home';
   let editingId = null;
+  let formCategory = null;
+  let formSubcategory = null;
   let currentWeekChart = null;
   let categoryChart = null;
   let subcategoryChart = null;
@@ -89,8 +91,7 @@
   const form = document.getElementById('expenseForm');
   const formTitle = document.getElementById('formTitle');
   const dateInput = document.getElementById('date');
-  const categoryInput = document.getElementById('category');
-  const subcategoryInput = document.getElementById('subcategory');
+  const subcategoryGrid = document.getElementById('subcategoryGrid');
   const descriptionInput = document.getElementById('description');
   const amountInput = document.getElementById('amount');
   const submitBtn = document.getElementById('submitBtn');
@@ -273,21 +274,6 @@
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[c]));
   }
-
-  // ---------- category dropdowns ----------
-  function populateCategoryOptions() {
-    categoryInput.innerHTML = Object.keys(CATEGORIES)
-      .map((c) => `<option value="${c}">${CATEGORIES[c].label}</option>`).join('');
-  }
-
-  function populateSubcategoryOptions(selected) {
-    const cat = CATEGORIES[categoryInput.value];
-    const subs = cat ? Object.keys(cat.subcategories) : [];
-    subcategoryInput.innerHTML = subs.map((s) => `<option value="${s}">${s}</option>`).join('');
-    if (selected && subs.includes(selected)) subcategoryInput.value = selected;
-  }
-
-  categoryInput.addEventListener('change', () => populateSubcategoryOptions());
 
   function populateSubcategoryChartSelect() {
     subcategoryChartSelect.innerHTML = Object.keys(CATEGORIES)
@@ -940,6 +926,57 @@
     renderCharts();
   });
 
+  // White line-icon per subcategory, same stroke style as the category icons
+  // above — reuses the fork & knife / car / ticket icons for the subcategory
+  // that best matches its parent category's icon.
+  const SUBCATEGORY_ICON_PATHS = {
+    Cafeteria: '<path d="M6 8h11v7a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8z"/><path d="M17 9h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 4c.5 1 .5 1.5 0 2.5M11 4c.5 1 .5 1.5 0 2.5"/>',
+    'Eating Outside': CATEGORY_ICON_PATHS.Food,
+    'Ordering Food': '<path d="M3 8l9-5 9 5-9 5-9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+    'Train/Bus': '<rect x="3" y="5" width="18" height="11" rx="2"/><path d="M3 11h18"/><circle cx="7.5" cy="18.5" r="1.5"/><circle cx="16.5" cy="18.5" r="1.5"/>',
+    Uber: CATEGORY_ICON_PATHS.Transport,
+    Scooter: '<circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M5 19h6l2-9h4"/><path d="M13 6h3"/><path d="M17 4v4"/>',
+    Drinks: '<path d="M4 4h16l-7 8v7"/><path d="M9 19h6"/>',
+    Dates: '<path d="M12 20s-7-4.5-9.5-9C.5 7 2 3.5 5.5 3.5 8 3.5 9.5 5 12 8c2.5-3 4-4.5 6.5-4.5C22 3.5 23.5 7 21.5 11c-2.5 4.5-9.5 9-9.5 9z"/>',
+    Tickets: CATEGORY_ICON_PATHS.Lifestyle,
+    Else: '<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/>',
+  };
+
+  // Flat grid of every subcategory (grouped implicitly by iteration order —
+  // Food's, then Transport's, then Lifestyle's), each dot colored by its
+  // parent category so the color always identifies the category regardless
+  // of which specific subcategory is picked.
+  function renderSubcategoryGrid() {
+    const items = [];
+    Object.keys(CATEGORIES).forEach((c) => {
+      Object.keys(CATEGORIES[c].subcategories).forEach((s) => {
+        items.push({ category: c, subcategory: s });
+      });
+    });
+    subcategoryGrid.innerHTML = items.map(({ category, subcategory }) => `
+      <button type="button" class="subcategory-item" data-category="${category}" data-subcategory="${subcategory}">
+        <span class="subcategory-dot" style="background:${RING_COLORS[category]}">
+          <svg class="subcategory-icon" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${SUBCATEGORY_ICON_PATHS[subcategory] || ''}</svg>
+        </span>
+        <span class="subcategory-label">${escapeHtml(subcategory)}</span>
+      </button>`).join('');
+  }
+
+  function updateSubcategorySelection() {
+    subcategoryGrid.querySelectorAll('.subcategory-item').forEach((btn) => {
+      const match = btn.dataset.category === formCategory && btn.dataset.subcategory === formSubcategory;
+      btn.classList.toggle('selected', match);
+    });
+  }
+
+  subcategoryGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.subcategory-item');
+    if (!btn) return;
+    formCategory = btn.dataset.category;
+    formSubcategory = btn.dataset.subcategory;
+    updateSubcategorySelection();
+  });
+
   function renderCharts() {
     const dates = scopeDates(); // Date[] for week/month, null for all
     const dateSet = dates ? new Set(dates.map(toISODate)) : null;
@@ -1250,7 +1287,9 @@
     editingId = null;
     form.reset();
     dateInput.value = toISODate(new Date());
-    populateSubcategoryOptions();
+    formCategory = null;
+    formSubcategory = null;
+    updateSubcategorySelection();
     submitBtn.textContent = 'Add Expense';
     cancelEditBtn.classList.add('hidden');
     formTitle.textContent = 'Add Expense';
@@ -1260,8 +1299,9 @@
     const entry = expenses.find((e) => e.id === id);
     if (!entry) return;
     dateInput.value = entry.date;
-    categoryInput.value = entry.category;
-    populateSubcategoryOptions(entry.subcategory);
+    formCategory = entry.category;
+    formSubcategory = entry.subcategory;
+    updateSubcategorySelection();
     descriptionInput.value = entry.description || '';
     amountInput.value = entry.amount;
     editingId = id;
@@ -1282,8 +1322,8 @@
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const date = dateInput.value;
-    const category = categoryInput.value;
-    const subcategory = subcategoryInput.value;
+    const category = formCategory;
+    const subcategory = formSubcategory;
     const description = descriptionInput.value.trim();
     const amount = parseFloat(amountInput.value);
 
@@ -1508,8 +1548,7 @@
   })();
 
   // ---------- init ----------
-  populateCategoryOptions();
-  populateSubcategoryOptions();
+  renderSubcategoryGrid();
   populateSubcategoryChartSelect();
   dailyLimitInput.value = dailyLimit;
   dateInput.value = toISODate(new Date());
