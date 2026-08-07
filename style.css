@@ -476,7 +476,7 @@ button.danger:hover { filter: none; opacity: 0.75; }
 
 .bottom-sheet {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
-  height: auto; max-height: 75vh; overflow: hidden;
+  height: auto; max-height: 75vh;
   background: var(--surface);
   border-radius: 22px 22px 0 0;
   box-shadow: var(--shadow);
@@ -506,9 +506,9 @@ button.danger:hover { filter: none; opacity: 0.75; }
 .bottom-sheet-content {
   flex: 1;
   overflow-y: auto;
-  /* Top padding gives a selected subcategory icon's scale/ring room to
+  /* Top padding gives a selected subcategory icon's selection ring room to
      render without getting clipped by this scroll area's own edge. */
-  padding: 10px 20px 20px;
+  padding: 16px 20px 20px;
   /* Stops an overscroll at the top/bottom of this scroll area from chaining
      into (and dragging) the locked background page underneath on iOS. */
   overscroll-behavior: contain;
@@ -553,11 +553,15 @@ button.danger:hover { filter: none; opacity: 0.75; }
 .subcategory-dot {
   width: 32px; height: 32px; flex: none; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  transition: box-shadow .15s ease, transform .15s ease;
+  transition: box-shadow .15s ease;
 }
 .subcategory-icon { width: 18px; height: 18px; }
 .subcategory-label { font-size: 10.5px; font-weight: 600; color: var(--ink-secondary); text-align: center; line-height: 1.15; }
-.subcategory-item.selected .subcategory-dot { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); transform: scale(1.08); }
+/* No transform: scale() here on purpose — combined with the ancestor
+   overflow clipping above (for the sheet's rounded corners / internal
+   scroll), scaling the dot was getting its top edge clipped on iOS
+   Safari. The ring alone is enough of a selected indicator. */
+.subcategory-item.selected .subcategory-dot { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--ink); }
 .subcategory-item.selected .subcategory-label { color: var(--ink); }
 
 @media (max-width: 480px) {
