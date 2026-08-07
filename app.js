@@ -112,7 +112,9 @@
   const importInput = document.getElementById('importInput');
   const clearAllBtn = document.getElementById('clearAllBtn');
   const headerMood = document.getElementById('headerMood');
-  const formCard = document.getElementById('formCard');
+  const addSheetBackdrop = document.getElementById('addSheetBackdrop');
+  const addSheet = document.getElementById('addSheet');
+  const addSheetHandle = document.getElementById('addSheetHandle');
   const settingsForm = document.getElementById('settingsForm');
   const dailyLimitInput = document.getElementById('dailyLimitInput');
   const categoryEmptyState = document.getElementById('categoryEmptyState');
@@ -1173,7 +1175,6 @@
     appNav.querySelectorAll('.app-nav-item').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.page === page);
     });
-    if (page === 'add') amountInput.focus();
     // Charts built while their page was display:none get created with a
     // zero-size canvas and never recover — rebuild once the page is visible.
     if (page === 'charts') { renderCharts(); renderSubscriptions(); }
@@ -1181,8 +1182,69 @@
   }
 
   appNav.querySelectorAll('.app-nav-item').forEach((btn) => {
-    btn.addEventListener('click', () => setPage(btn.dataset.page));
+    btn.addEventListener('click', () => {
+      if (btn.dataset.page === 'add') {
+        resetForm();
+        openAddSheet();
+      } else {
+        setPage(btn.dataset.page);
+      }
+    });
   });
+
+  // ---------- add-expense bottom sheet ----------
+  function openAddSheet() {
+    addSheetBackdrop.classList.remove('hidden');
+    addSheet.classList.remove('hidden');
+    void addSheet.offsetHeight; // force layout so the slide-up transition runs
+    addSheetBackdrop.classList.add('open');
+    addSheet.classList.add('open');
+    amountInput.focus();
+  }
+
+  function closeAddSheet() {
+    addSheetBackdrop.classList.remove('open');
+    addSheet.classList.remove('open');
+    setTimeout(() => {
+      addSheetBackdrop.classList.add('hidden');
+      addSheet.classList.add('hidden');
+      resetForm();
+    }, 300);
+  }
+
+  addSheetBackdrop.addEventListener('click', closeAddSheet);
+
+  // Drag-to-dismiss: only the handle bar is a drag target, so it doesn't
+  // interfere with normal taps/typing inside the form below it.
+  let sheetDragStartY = null;
+  let sheetDragDelta = 0;
+
+  addSheetHandle.addEventListener('pointerdown', (e) => {
+    sheetDragStartY = e.clientY;
+    sheetDragDelta = 0;
+    addSheet.classList.add('dragging');
+    try { addSheetHandle.setPointerCapture(e.pointerId); } catch { /* no active pointer to capture */ }
+  });
+
+  addSheetHandle.addEventListener('pointermove', (e) => {
+    if (sheetDragStartY === null) return;
+    sheetDragDelta = Math.max(0, e.clientY - sheetDragStartY);
+    addSheet.style.transform = `translateY(${sheetDragDelta}px)`;
+  });
+
+  const endSheetDrag = () => {
+    if (sheetDragStartY === null) return;
+    addSheet.classList.remove('dragging');
+    addSheet.style.transform = '';
+    const sheetHeight = addSheet.getBoundingClientRect().height || 1;
+    const shouldClose = sheetDragDelta > sheetHeight * 0.25;
+    sheetDragStartY = null;
+    sheetDragDelta = 0;
+    if (shouldClose) closeAddSheet();
+  };
+
+  addSheetHandle.addEventListener('pointerup', endSheetDrag);
+  addSheetHandle.addEventListener('pointercancel', endSheetDrag);
 
   // ---------- form handling ----------
   function resetForm() {
@@ -1207,7 +1269,7 @@
     submitBtn.textContent = 'Update Expense';
     cancelEditBtn.classList.remove('hidden');
     formTitle.textContent = 'Edit Expense';
-    setPage('add');
+    openAddSheet();
   }
 
   function deleteExpense(id) {
@@ -1238,15 +1300,11 @@
     }
 
     saveExpenses();
-    resetForm();
     renderAll();
-    setPage('home');
+    closeAddSheet();
   });
 
-  cancelEditBtn.addEventListener('click', () => {
-    resetForm();
-    setPage('home');
-  });
+  cancelEditBtn.addEventListener('click', closeAddSheet);
 
   entriesList.addEventListener('click', (e) => {
     const editBtn = e.target.closest('.edit-btn');

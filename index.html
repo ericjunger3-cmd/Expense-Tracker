@@ -6,7 +6,7 @@
 <title>Daily Expense Tracker</title>
 <link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 
@@ -167,39 +167,6 @@
     </section>
   </section>
 
-  <!-- ================= ADD ================= -->
-  <section class="page hidden" data-page="add" id="pageAdd">
-    <section class="panel" id="formCard">
-      <h2 id="formTitle">Add Expense</h2>
-      <form id="expenseForm">
-        <div class="form-row">
-          <label for="date">Date</label>
-          <input type="date" id="date" required>
-        </div>
-        <div class="form-row">
-          <label for="category">Category</label>
-          <select id="category" required></select>
-        </div>
-        <div class="form-row">
-          <label for="subcategory">Subcategory</label>
-          <select id="subcategory" required></select>
-        </div>
-        <div class="form-row">
-          <label for="description">Description (optional)</label>
-          <input type="text" id="description" placeholder="e.g. Lunch at cafe" maxlength="80">
-        </div>
-        <div class="form-row">
-          <label for="amount">Amount (€)</label>
-          <input type="number" id="amount" step="0.01" min="0.01" required>
-        </div>
-        <div class="form-actions">
-          <button type="submit" id="submitBtn">Add Expense</button>
-          <button type="button" id="cancelEditBtn" class="secondary hidden">Cancel</button>
-        </div>
-      </form>
-    </section>
-  </section>
-
   <!-- ================= ENTRIES ================= -->
   <section class="page hidden" data-page="entries" id="pageEntries">
     <h1 class="page-title">This Week's Entries</h1>
@@ -259,7 +226,41 @@
 
 </div>
 
+<div class="sheet-backdrop hidden" id="addSheetBackdrop"></div>
+<div class="bottom-sheet hidden" id="addSheet">
+  <div class="bottom-sheet-handle" id="addSheetHandle"></div>
+  <div class="bottom-sheet-content">
+    <h2 id="formTitle">Add Expense</h2>
+    <form id="expenseForm">
+      <div class="form-row">
+        <label for="date">Date</label>
+        <input type="date" id="date" required>
+      </div>
+      <div class="form-row">
+        <label for="category">Category</label>
+        <select id="category" required></select>
+      </div>
+      <div class="form-row">
+        <label for="subcategory">Subcategory</label>
+        <select id="subcategory" required></select>
+      </div>
+      <div class="form-row">
+        <label for="description">Description (optional)</label>
+        <input type="text" id="description" placeholder="e.g. Lunch at cafe" maxlength="80">
+      </div>
+      <div class="form-row">
+        <label for="amount">Amount (€)</label>
+        <input type="number" id="amount" step="0.01" min="0.01" required>
+      </div>
+      <div class="form-actions">
+        <button type="submit" id="submitBtn">Add Expense</button>
+        <button type="button" id="cancelEditBtn" class="secondary hidden">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="lib/chart.umd.min.js"></script>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=36"></script>
 </body>
 </html>
