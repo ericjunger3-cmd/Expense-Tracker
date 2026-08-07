@@ -476,7 +476,7 @@ button.danger:hover { filter: none; opacity: 0.75; }
 
 .bottom-sheet {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
-  height: 68vh; max-height: 68vh;
+  height: auto; max-height: 75vh; overflow: hidden;
   background: var(--surface);
   border-radius: 22px 22px 0 0;
   box-shadow: var(--shadow);
@@ -506,7 +506,9 @@ button.danger:hover { filter: none; opacity: 0.75; }
 .bottom-sheet-content {
   flex: 1;
   overflow-y: auto;
-  padding: 0 20px 20px;
+  /* Top padding gives a selected subcategory icon's scale/ring room to
+     render without getting clipped by this scroll area's own edge. */
+  padding: 10px 20px 20px;
   /* Stops an overscroll at the top/bottom of this scroll area from chaining
      into (and dragging) the locked background page underneath on iOS. */
   overscroll-behavior: contain;

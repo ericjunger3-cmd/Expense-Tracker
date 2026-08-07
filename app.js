@@ -1270,6 +1270,14 @@
   }
 
   function closeAddSheet() {
+    // Dismiss the keyboard immediately (rather than letting it happen
+    // whenever the browser gets around to it) so it isn't still animating
+    // closed at the same time as unlockBodyScroll() below — the two
+    // fighting over the viewport is what made the bottom nav jump again
+    // right after confirming an entry.
+    if (document.activeElement && addSheet.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
     addSheetBackdrop.classList.remove('open');
     addSheet.classList.remove('open');
     setTimeout(() => {
